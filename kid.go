@@ -2,11 +2,7 @@
 Package kid (K-sortable ID) provides a goroutine-safe generator of short (10
 byte binary, 16 bytes when base32 encoded), url-safe, k-sortable unique IDs.
 
-Kid is suitable for use where inter-process/global-scale coordination of ID
-generation and cryptographically-secure IDs are not requirements. For many use
-cases, kid's unique IDs will be random-enough.
-
-The 10-byte binary representation of an ID:
+The 10-byte binary representation of an ID is composed of:
 
   - 6-byte value representing Unix time in milliseconds
   - 2-byte sequence, and,
@@ -18,7 +14,7 @@ kid.ID features:
 
   - Size: 10 bytes as binary, 16 bytes if stored/transported as an encoded string.
   - Timestamp + sequence is guaranteed to be unique.
-  - 2 bytes of trailing randomness to prevent simple counter attacks.
+  - 2 bytes of trailing randomness
   - K-orderable in both binary and base32 encoded representations.
   - URL-friendly custom encoding without the vowels a, i, o, and u.
   - Automatic (un)/marshalling for SQL and JSON.
@@ -39,7 +35,7 @@ Example usage:
 		  // Output: 06bq7xhnr03mlz6r 06bq7xhnr03mlz6r [001 149 115 246 021 192 007 073 252 216]
 	}
 
-Acknowledgements:
+Acknowledgments:
 
 While the ID payload differs greatly, the API and much of this package borrows
 heavily from https://github.com/rs/xid, a zero-configuration globally-unique

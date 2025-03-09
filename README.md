@@ -2,59 +2,59 @@
 
 # kid
 
-Package kid provides a performant, goroutine-safe generator of short
-[k-sortable](https://en.wikipedia.org/wiki/K-sorted_sequence) unique IDs
-suitable for use where inter-process ID generation coordination is not
-required.
+Package kid (K-sortable ID) provides a goroutine-safe generator
+of short (10 byte binary, 16 bytes when base32 encoded), url-safe,
+[k-sortable](https://en.wikipedia.org/wiki/K-sorted_sequence) unique IDs.
 
-Using a non-standard character set (fewer vowels), IDs Base-32 encode as a
-16-character URL-friendly, case-insensitive representation like
-`dfp7qt0v2pwt0v2x`.
+The 10-byte binary representation of an ID is composed of:
 
-An ID is a:
+  - 6-byte value representing Unix time in milliseconds
+  - 2-byte sequence, and,
+  - 2-byte random value.
 
-  - 4-byte timestamp value representing seconds since the Unix epoch, plus a
-  - 6-byte random value; see the [Random Source](#random-source) discussion.
+IDs encode (base32) as 16-byte url-friendly strings that look like:
 
-Built-in (de)serialization simplifies interacting with SQL databases and JSON.
-`cmd/kid` provides the `kid` utility to generate or inspect IDs. Thanks to
-`internal/fastrand` introduced in Go 1.19 and made the default `math/rand` source in Go
-1.20, ID generation starts fast and scales well as cores are added. De-serialization
-has also been optimized. See [Package Benchmarks](#package-benchmarks).
+    06bqj05bhh2lcbdb
 
-Why `kid` instead of [alternatives](#package-comparisons)?
+## kid.ID features
 
-  - At 10 bytes binary, 16 bytes base32-encoded, kid.IDs are case-insensitive
-    and short, yet with 48 bits of uniqueness *per second*, are unique
-    enough for many use cases.
-  - IDs have a random component rather than a potentially guessable
-    monotonic counter found in some libraries.
+  - Size: 10 bytes as binary, 16 bytes if stored/transported as an encoded string.
+  - Timestamp + sequence is guaranteed to be unique.
+  - 2 bytes of trailing randomness to prevent simple counter attacks.
+  - K-orderable in both binary and base32 encoded representations.
+  - URL-friendly custom encoding without the vowels a, i, o, and u.
+  - Automatic (un)/marshalling for SQL and JSON.
+  - The cmd/kid tool for ID generation and introspection.
 
-_**Acknowledgment**: This package borrows heavily from rs/xid
-(https://github.com/rs/xid), a zero-configuration globally-unique
-high-performance ID generator that leverages ideas from MongoDB
-(https://docs.mongodb.com/manual/reference/method/ObjectId/)._
-
-## Example:
+## Example usage
 
 ```go
-id := kid.New()
-fmt.Printf("%s\n", id.String()) // example: 06bpwnfe2h3edlj7
+func main() {
+    id := kid.New()
+	  fmt.Printf("%s %s %03v\n", id, id.String(), id[:])
+	  // Example output: 06bq7xhnr03mlz6r 06bq7xhnr03mlz6r [001 149 115 246 021 192 007 073 252 216]
 
-id2, err := kid.FromString("06bpwnfe2h3edlj7")
-if err != nil {
-	fmt.Println(err)
+	  id, err := kid.FromString("06bq7xhnr03mlz6r")
+	  if err != nil {
+	  	// do something
+	  }
+	  fmt.Printf("%s %s %03v\n", id, id.String(), id[:])
+	  // Output: 06bq7xhnr03mlz6r 06bq7xhnr03mlz6r [001 149 115 246 021 192 007 073 252 216]
 }
-
-fmt.Printf("equal: %v\n", id == id2)
-// Output: equal: true
-
-fmt.Printf("%s %d %d %v\n", id2.Time().UTC(), id2.Sequence(), id2.Random(), id2[:])
-// Output: 2025-03-07 02:01:11.7 +0000 UTC 1750 20039 [1 149 110 85 205 20 6 214 78 71]
 ```
+
+## Acknowledgments
+
+While the ID payload differs greatly, the API and much of this package borrows
+heavily from https://github.com/rs/xid, a zero-configuration globally-unique
+ID generator. ID unique timestamp+sequence pairs are generated from the
+google/uuidV7 getV7Time() algorithm.
 
 ## Uniqueness
  
+Each call to `kid.New()` is guaranteed to return a unique ID with a
+timestamp+sequence greater than any previous call.
+
 To satisfy whether kid.IDs are unique, run [eval/uniqcheck/main.go](eval/uniqcheck/main.go):
 
   $ go run eval/uniqcheck/main.go -count 2000000 -goroutines 20
@@ -98,8 +98,8 @@ Contributions are welcome.
 
 ## Package Comparisons
 
-`kid` was born out of a desire for a short, not-guessable, k-sortable unique ID.
-`kid` is not designed to be globally unique.
+`kid` was born out of a desire for a short, k-sortable unique ID where global
+uniqueness or inter-process ID generation coordination is not required.
 
 A comparison of a variety of ID generators:
 
@@ -116,20 +116,7 @@ A comparison of a variety of ID generators:
 | [oklog/ulid](https://github.com/oklog/ulid)               | 16 | 26 |  true | `01JNW4TDV7ZFQKNKYYBRSQ3BYB`<br>`01JNW4TDV7CMDMJ0FB5N1XCN3G`<br>`01JNW4TDV7422RPDYADKD0DASE`<br>`01JNW4TDV78NHZHTKKY2AARERT`  | crypt/rand | 6 byte ts(ms) : 10 byte counter random init per ts(ms) |
 | [kjk/betterguid](https://github.com/kjk/betterguid)       | 17 | 20 |  true | `-OKsIISbpc0n250oHsGf`<br>`-OKsIISbpc0n250oHsGg`<br>`-OKsIISbpc0n250oHsGh`<br>`-OKsIISbpc0n250oHsGi`  | counter | 8 byte ts(ms) : 9 byte counter random init per ts(ms) |
 
-| Package                                                   |BLen|ELen| K-Sort| Encoded ID and Next | Unique? | Components |
-|-----------------------------------------------------------|----|----|-------|---------------------|---------|------------|
-| [mwyvr/kid](https://github.com/mwyvr/kid)                 | 10 | 16 |  true | `06bqhh5rnr5h3sj2`<br>`06bqhh5rnr5h42b2`<br>`06bqhh5rnr5h69sk`<br>`06bqhh5rnr5h9z8l`  | crypto/rand | 6 byte ts(millisecond) : 2 byte sequence : 2 byte random |
-| [rs/xid](https://github.com/rs/xid)                       | 12 | 20 |  true | `cv6dqnlq9fa04csdltq0`<br>`cv6dqnlq9fa04csdltqg`<br>`cv6dqnlq9fa04csdltr0`<br>`cv6dqnlq9fa04csdltrg`  | counter | 4 byte ts(sec) : 2 byte mach ID : 2 byte pid : 3 byte monotonic counter |
-| [segmentio/ksuid](https://github.com/segmentio/ksuid)     | 20 | 27 |  true | `2u3ZY4o2ptB7yVyUktXPAVOWdoL`<br>`2u3ZYADxXLQX6QOb9X2d0eC88tQ`<br>`2u3ZY8RqqrV4y8FJDhirejW3xbZ`<br>`2u3ZYAX8WpSutXVZKdsNwTsVTjv`  | math/rand | 4 byte ts(sec) : 16 byte random |
-| [google/uuid](https://github.com/google/uuid) V4          | 16 | 36 | false | `e71335bd-d8e3-4778-b0fc-8cef8f92e05d`<br>`367b7633-8deb-4388-bedf-e504a794552d`<br>`4728c53d-fdb1-4392-b101-4d34e3329dcf`<br>`5123ba29-468c-4d85-b78e-cfb04774c9a4`  | crypt/rand | v4: 16 bytes random with version & variant embedded |
-| [google/uuid](https://github.com/google/uuid) V7          | 16 | 36 |  true | `01957840-b8ae-7b15-8b86-30ad78faaba7`<br>`01957840-b8ae-7b16-87dc-a816c6e348d2`<br>`01957840-b8ae-7b17-b548-783d043bf258`<br>`01957840-b8ae-7b18-af6d-5260449a70e3`  | crypt/rand | v7: 16 bytes : 8 bytes time+sequence, version/variant, random |
-| [chilts/sid](https://github.com/chilts/sid)               | 16 | 23 |  true | `1WfzYbI22St-5~ZoYnbV6vy`<br>`1WfzYbI22b7-6AYuiO6j4zC`<br>`1WfzYbI22iy-5Rhe7fz0TLG`<br>`1WfzYbI22qw-4TThCW26eki`  | math/rand | 8 byte ts(nanosecond) 8 byte randmo |
-| [matoous/go-nanoid/v2](https://github.com/matoous/go-nanoid/) | 21 | 21 |  true | `XqPRWxlP7oOcvaTxaB4b8`<br>`88Zx-c44rjLrrnw95Ma1l`<br>`jsr1UYgJ0smO5EEO8OvAw`<br>`K_BSHtABuQTK_L7kM-7Vx`  | crypto/rand | 21 byte rand (adjustable) |
-| [sony/sonyflake](https://github.com/sony/sonyflake)       | 16 | 29 |  true | `GU2TMOJRHEYTCOBWHA3TMOJZGIYTA`<br>`GU2TMOJRHEYTCOBWHA3TONRUG42DM`<br>`GU2TMOJRHEYTCOBWHA3TQMZQGI4DE`<br>`GU2TMOJRHEYTCOBWHA3TQOJVHAYTQ`  | counter | 39 bit ts(10msec) 8 bit seq, 16 bit mach id |
-| [oklog/ulid](https://github.com/oklog/ulid)               | 16 | 26 |  true | `01JNW41E5EHJ2X4D1JEQ0B5G2Q`<br>`01JNW41E5ET3Q0JC13CCRG55GC`<br>`01JNW41E5EKTCFG3C8H4MVEPVQ`<br>`01JNW41E5EBNJ0XXHWNK725X6Q`  | crypt/rand | 6 byte ts(ms) : 10 byte counter random init per ts(ms) |
-| [kjk/betterguid](https://github.com/kjk/betterguid)       | 17 | 20 |  true | `-OKsFAXizLIVMi8MGojv`<br>`-OKsFAXizLIVMi8MGojw`<br>`-OKsFAXizLIVMi8MGojx`<br>`-OKsFAXizLIVMi8MGojy`  | counter | 8 byte ts(ms) : 9 byte counter random init per ts(ms) |
-
-Another comparison of various Go-based unique ID solutions:
+An article presenting various Go-based unique ID solutions can be found at:
 https://blog.kowalczyk.info/article/JyRZ/generating-good-unique-ids-in-go.html
 
 ## Package Benchmarks
