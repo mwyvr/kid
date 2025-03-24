@@ -59,10 +59,10 @@ timestamp+sequence greater than any previous call.
 
 To satisfy whether kid.IDs are unique, run [eval/uniqcheck/main.go](eval/uniqcheck/main.go):
 
-$ go run eval/uniqcheck/main.go -count 2000000 -goroutines 20
-
-Generating 2,000,000 IDs per 20 goroutines:
-Total keys: 40,000,000. Keys in last time tick: 1,380. Number of dupes: 0
+    $ go run eval/uniqcheck/main.go -count 2000000 -goroutines 20
+    # example  output:
+    Generating 2,000,000 IDs per 20 goroutines:
+    Total keys: 40,000,000. Keys in last time tick: 1,380. Number of dupes: 0
 
 Or, at the command line, produce IDs and use OS utilities to check (single-threaded):
 
