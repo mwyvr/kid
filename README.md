@@ -66,6 +66,7 @@ Total keys: 40,000,000. Keys in last time tick: 1,380. Number of dupes: 0
 
 Or, at the command line, produce IDs and use OS utilities to check (single-threaded):
 
+    $ go install github.com/mwyvr/kid/cmd/kid@latest
     $ kid -c 2000000 | sort | uniq -d
     // None output
 
