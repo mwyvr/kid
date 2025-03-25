@@ -200,7 +200,7 @@ func TestIDComponents(t *testing.T) {
 	for i, v := range tests {
 		if v.iskid {
 			t.Run(fmt.Sprintf("Test%d", i), func(t *testing.T) {
-				if got, want := fmt.Sprintf("%s", v.id.Time()), v.time; got != want {
+				if got, want := v.id.Time().String(), v.time; got != want {
 					t.Errorf("Time() = %v, want %v", got, want)
 				}
 				if got, want := v.id.Timestamp(), v.ts; got != want {
@@ -241,7 +241,7 @@ func TestSequence(t *testing.T) {
 
 func TestIDTime(t *testing.T) {
 	nilTime := "1970-01-01 00:00:00 +0000 UTC"
-	if fmt.Sprintf("%s", nilID.Time()) != nilTime {
+	if nilID.Time().String() != nilTime {
 		t.Errorf("got: %s, want:%s", nilID.Time(), nilTime)
 	}
 }
@@ -335,10 +335,9 @@ func TestID_UnmarshalText(t *testing.T) {
 			var id ID
 			if err := id.UnmarshalText([]byte(tt.encoded)); (err != nil) != tt.wantErr {
 				t.Errorf("ID.UnmarshalText() error = %v, wantErr %v", err, tt.wantErr)
-			} else {
-				if !tt.wantErr && tt.id.String() != tt.encoded {
-					t.Errorf("ID.UnmarshalText() got: %v, want encoded: %v", tt.id.String(), tt.encoded)
-				}
+			}
+			if !tt.wantErr && tt.id.String() != tt.encoded {
+				t.Errorf("ID.UnmarshalText() got: %v, want encoded: %v", tt.id.String(), tt.encoded)
 			}
 			if err := id.UnmarshalText([]byte(tt.encoded)); err != nil {
 				if id != nilID {
@@ -383,6 +382,9 @@ type jsonType struct {
 func TestIDMarshalJSON(t *testing.T) {
 	id := ID{}
 	got, err := id.MarshalJSON()
+	if err != nil {
+		t.Error("id.MarshalJSON()", err)
+	}
 	if id == nilID && !reflect.DeepEqual(string(got), "null") {
 		t.Errorf("got: %v, want: \"null\"", string(got))
 	}
