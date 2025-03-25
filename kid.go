@@ -108,7 +108,7 @@ func New() (id ID) {
 	id[6] = byte(s >> 8)
 	id[7] = byte(s)
 	// two random bytes
-	rand.Read(id[8:])
+	rand.Read(id[8:]) //nolint:errcheck
 	return id
 }
 
@@ -304,8 +304,8 @@ func (id ID) Bytes() []byte {
 // Unix epoch. Go timestamps are at location UTC.
 func (id ID) Timestamp() int64 {
 	b := id[0:6]
-	// Big Endian
-	return int64(uint64(b[0])<<40 | uint64(b[1])<<32 | uint64(b[2])<<24 | uint64(b[3])<<16 | uint64(b[4])<<8 | uint64(b[5]))
+	// Big Endian, no overflow possible
+	return int64(uint64(b[0])<<40 | uint64(b[1])<<32 | uint64(b[2])<<24 | uint64(b[3])<<16 | uint64(b[4])<<8 | uint64(b[5])) //nolint:gosec
 }
 
 // Time returns the ID's timestamp as a Time value with millisecond resolution
@@ -318,14 +318,14 @@ func (id ID) Time() time.Time {
 func (id ID) Sequence() int32 {
 	b := id[6:8]
 	// Big Endian
-	return int32(uint32(b[0])<<8 | uint32(b[1]))
+	return int32(uint32(b[0])<<8 | uint32(b[1])) //nolint:gosec
 }
 
 // Random returns the two-byte random component of the ID.
 func (id ID) Random() int32 {
 	b := id[8:]
 	// Big Endian
-	return int32(uint32(b[0])<<8 | uint32(b[1]))
+	return int32(uint32(b[0])<<8 | uint32(b[1])) //nolint:gosec
 }
 
 // Compare makes IDs k-sortable, behaving like `bytes.Compare`, returning 0 if
