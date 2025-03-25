@@ -1,8 +1,8 @@
 package bench
 
 import (
+	"crypto/rand"
 	"log"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -95,9 +95,7 @@ func BenchmarkUlid(b *testing.B) {
 	var r ulid.ULID
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			t := time.Now().UTC()
-			entropy := rand.New(rand.NewSource(t.UnixNano()))
-			r = ulid.MustNew(ulid.Timestamp(t), entropy)
+			r = ulid.MustNew(ulid.Timestamp(time.Now().UTC()), rand.Reader)
 		}
 		resultULID = r
 	})

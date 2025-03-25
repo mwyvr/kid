@@ -3,9 +3,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/base32"
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/chilts/sid"
@@ -139,7 +139,7 @@ func main() {
 			newUlid().String(),
 			newUlid().String(),
 			newUlid().String(),
-			"crypt/rand",
+			"user-definable, crypt/rand",
 			"6 byte ts(ms) : 10 byte counter random init per ts(ms)",
 		},
 		{
@@ -165,11 +165,9 @@ func main() {
 	}
 }
 
-// ulid is configured here to be similar (random component) to kid, ksuid, uuid
+// ulid is configured here to be similar (crypto/rand component) to kid
 func newUlid() ulid.ULID {
-	t := time.Now().UTC()
-	entropy := rand.New(rand.NewSource(t.UnixNano()))
-	return ulid.MustNew(ulid.Timestamp(t), entropy)
+	return ulid.MustNew(ulid.Timestamp(time.Now().UTC()), rand.Reader)
 }
 
 func newUUIDV7() uuid.UUID {
@@ -181,8 +179,10 @@ func newUUIDV7() uuid.UUID {
 }
 
 // SonyFlake doesn't provide encoding
-var sonygen = sonyflake.NewSonyflake(sonyflake.Settings{})
-var base32Encoder = base32.StdEncoding.WithPadding(base32.NoPadding)
+var (
+	sonygen       = sonyflake.NewSonyflake(sonyflake.Settings{})
+	base32Encoder = base32.StdEncoding.WithPadding(base32.NoPadding)
+)
 
 func newSonyFlake() string {
 	if sonygen == nil {
@@ -190,7 +190,7 @@ func newSonyFlake() string {
 	}
 	id, err := sonygen.NextID()
 	if err != nil {
-		panic("SonyFlake NextID failed")
+		panic(err)
 	}
 	return base32Encoder.EncodeToString([]byte(fmt.Sprintf("%v", id)))
 }
