@@ -43,7 +43,7 @@ func main() {
 			kid.New().String(),
 			kid.New().String(),
 			kid.New().String(),
-			"crypto/rand",
+			"unique ts(ms)+sequence, plus crypto/rand",
 			"6 byte ts(millisecond) : 2 byte sequence : 2 byte random",
 		},
 		{
@@ -55,7 +55,7 @@ func main() {
 			xid.New().String(),
 			xid.New().String(),
 			xid.New().String(),
-			"globally",
+			"ts(sec)+machineID+pid+counter",
 			"4 byte ts(sec) : 2 byte mach ID : 2 byte pid : 3 byte monotonic counter",
 		},
 		{
@@ -67,7 +67,7 @@ func main() {
 			ksuid.New().String(),
 			ksuid.New().String(),
 			ksuid.New().String(),
-			"math/rand",
+			"crypto/rand",
 			"4 byte ts(sec) : 16 byte random",
 		},
 		{
@@ -80,7 +80,7 @@ func main() {
 			uuid.New().String(),
 			uuid.New().String(),
 			"crypt/rand UUID",
-			"v4: 16 bytes random with version & variant embedded",
+			"v4: 122 bits random; 6 bits embedding version & variant",
 		},
 		{
 			"[google/uuid](https://github.com/google/uuid) V7",
@@ -92,7 +92,7 @@ func main() {
 			newUUIDV7().String(),
 			newUUIDV7().String(),
 			"crypt/rand UUID",
-			"v7: 16 bytes : 8 bytes time+sequence, version/variant, random",
+			"v7: 16 bytes : 48 bits time, 12 bits sequence, 6 bits version/variant, 62 bits random",
 		},
 		{
 			"[chilts/sid](https://github.com/chilts/sid)",
@@ -139,8 +139,8 @@ func main() {
 			newUlid().String(),
 			newUlid().String(),
 			newUlid().String(),
-			"user-definable, crypt/rand",
-			"6 byte ts(ms) : 10 byte counter random init per ts(ms)",
+			"user-definable rand src",
+			"6 byte ts(ms) : 10 byte monotonic counter random init per ts(ms)",
 		},
 		{
 			"[kjk/betterguid](https://github.com/kjk/betterguid)",
@@ -156,7 +156,7 @@ func main() {
 		},
 	}
 
-	fmt.Printf("| Package                                                   |BLen|ELen| K-Sort| Encoded ID and Next | Method | Components |\n")
+	fmt.Printf("| Package                                                   |BLen|ELen| K-Sort| Encoded ID and Next | Unique | Components |\n")
 	fmt.Printf("|-----------------------------------------------------------|----|----|-------|---------------------|--------|------------|\n")
 
 	for _, v := range packages {
