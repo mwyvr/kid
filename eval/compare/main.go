@@ -43,7 +43,7 @@ func main() {
 			kid.New().String(),
 			kid.New().String(),
 			kid.New().String(),
-			"unique ts(ms)+sequence, plus crypto/rand",
+			"unique (ts(ms) + sequence) + crypto/rand",
 			"6 byte ts(millisecond) : 2 byte sequence : 2 byte random",
 		},
 		{
@@ -55,7 +55,7 @@ func main() {
 			xid.New().String(),
 			xid.New().String(),
 			xid.New().String(),
-			"ts(sec)+machineID+pid+counter",
+			"ts(sec) + machineID + pid + counter",
 			"4 byte ts(sec) : 2 byte mach ID : 2 byte pid : 3 byte monotonic counter",
 		},
 		{
@@ -67,7 +67,7 @@ func main() {
 			ksuid.New().String(),
 			ksuid.New().String(),
 			ksuid.New().String(),
-			"crypto/rand",
+			"ts + crypto/rand",
 			"4 byte ts(sec) : 16 byte random",
 		},
 		{
@@ -79,7 +79,7 @@ func main() {
 			uuid.New().String(),
 			uuid.New().String(),
 			uuid.New().String(),
-			"crypt/rand UUID",
+			"crypt/rand ",
 			"v4: 122 bits random; 6 bits embedding version & variant",
 		},
 		{
@@ -91,7 +91,7 @@ func main() {
 			newUUIDV7().String(),
 			newUUIDV7().String(),
 			newUUIDV7().String(),
-			"crypt/rand UUID",
+			"ts(ms) + crypt/rand",
 			"v7: 16 bytes : 48 bits time, 12 bits sequence, 6 bits version/variant, 62 bits random",
 		},
 		{
@@ -103,7 +103,7 @@ func main() {
 			sid.IdBase64(),
 			sid.IdBase64(),
 			sid.IdBase64(),
-			"math/rand",
+			"ts + math/rand",
 			"8 byte ts(nanosecond) 8 byte random",
 		},
 		{
@@ -115,7 +115,7 @@ func main() {
 			newNanoID(),
 			newNanoID(),
 			newNanoID(),
-			"crypto/rand",
+			"ts + crypto/rand",
 			"21 byte rand (adjustable)",
 		},
 		{
@@ -127,7 +127,7 @@ func main() {
 			newSonyFlake(),
 			newSonyFlake(),
 			newSonyFlake(),
-			"ts+counter",
+			"ts + counter",
 			"39 bit ts(10msec) 8 bit seq, 16 bit mach id",
 		},
 		{
@@ -139,7 +139,7 @@ func main() {
 			newUlid().String(),
 			newUlid().String(),
 			newUlid().String(),
-			"user-definable rand src",
+			"ts + user-definable rand src",
 			"6 byte ts(ms) : 10 byte monotonic counter random init per ts(ms)",
 		},
 		{
@@ -151,7 +151,7 @@ func main() {
 			betterguid.New(),
 			betterguid.New(),
 			betterguid.New(),
-			"counter",
+			"ts + rand-init counter",
 			"8 byte ts(ms) : 9 byte counter random init per ts(ms)",
 		},
 	}
