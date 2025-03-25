@@ -1,0 +1,35 @@
+run:
+  concurrency: 4
+  timeout: 10m
+  deadline: 5m
+  tests: true
+
+linters:
+  enable-all: false
+  disable-all: true
+  enable:
+    - staticcheck
+    - errcheck
+    - gosimple
+    - govet
+    - unused
+    - gosec
+    - gocritic
+    - revive
+    - gofumpt
+
+linters-settings:
+  enabled-checks:
+    - shadow
+
+  gocritic:
+    enabled-checks:
+      - hugeParam
+
+  gofumpt:
+    module-path: ""
+
+issues:
+  exclude-dirs:
+    - vendor/
+    - tmp/
