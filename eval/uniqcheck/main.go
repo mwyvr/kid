@@ -57,12 +57,12 @@ func main() {
 	fmt.Printf("uniqcheck - run with -h to see available options.\n\n")
 	fmt.Printf("Generating %d IDs per %d goroutines:\n", count, numRoutines)
 
-	for i := range numRoutines {
+	for range numRoutines {
 		wg.Add(1)
-		go func(i int) {
+		go func() {
 			defer wg.Done()
 			generate(count)
-		}(i)
+		}()
 	}
 	wg.Wait()
 	fmt.Printf("Total keys: %d. Keys in last time tick: %d. Number of dupes: %d\n", exists.totalKeys, len(exists.keys), dupes)
@@ -79,7 +79,7 @@ func generate(count int) {
 		exists.mu.Lock()
 		if exists.lastTick != tmpTimestamp {
 			exists.lastTick = tmpTimestamp
-			// reset each new second
+			// reset each new millisecond
 			exists.keys = make(map[kid.ID]bool)
 		}
 		if !exists.keys[id] {
