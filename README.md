@@ -92,8 +92,21 @@ kid $(kid -c 4)
 
 ## Change Log
 
-- 2025-03-24 Drop minimum supported Go version to 1.23, thanks to heads up from @sergeevabc.
-- 2025-03-08 v1.2.0 released.
+v1.3.0: lock-free New(), full-width Compare, hardened decode paths
+- New() is lock-free and allocation-free: atomic CAS + wait-free
+  increment replaces the mutex; trailing bytes from math/rand/v2
+  (ChaCha8) replace per-call crypto/rand
+- Compare/Sort consider all 10 bytes, consistent with ==
+- UnmarshalJSON rejects non-string JSON values (bug fix)
+- Scan accepts the 10-byte binary form
+- New tests: clock regression, sequence borrow, parallel CAS stress,
+  three fuzz targets; eval/uniqcheck rewritten; CI runs -race on
+  1.23.x and stable across linux/macos/windows"
+
+main:
+- Drop minimum supported Go version to 1.23, thanks to heads up from @sergeevabc.
+
+v1.2.0 released:
 - 2025-03-06 Forked [rid](https://github.com/mwyvr/rid) in favour of kid for
   true k-sortability, requiring a new ID payload, now expected to remain static.
   Improved code coverage and documentation.
@@ -131,53 +144,53 @@ scaling_governor set to `performance`:
     echo "performance" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 
 ```bash
-$ go test -cpu 1,2,4,8,16,32 -test.benchmem -bench .
+❯ go test -cpu 1,2,4,8,16,32 -test.benchmem -bench .
 goos: linux
 goarch: amd64
 pkg: github.com/mwyvr/kid/eval/bench
 cpu: Intel(R) Core(TM) i9-14900K
-BenchmarkKid                	25668646	       44.42 ns/op	      0 B/op	      0 allocs/op
-BenchmarkKid-2              	24071296	       50.45 ns/op	      0 B/op	      0 allocs/op
-BenchmarkKid-4              	15894621	       75.01 ns/op	      0 B/op	      0 allocs/op
-BenchmarkKid-8              	12931524	       95.28 ns/op	      0 B/op	      0 allocs/op
-BenchmarkKid-16             	10273124	      114.5 ns/op	      0 B/op	      0 allocs/op
-BenchmarkKid-32             	8641492	      138.6 ns/op	      0 B/op	      0 allocs/op
-BenchmarkXid                	39413270	       28.53 ns/op	      0 B/op	      0 allocs/op
-BenchmarkXid-2              	42305062	       27.39 ns/op	      0 B/op	      0 allocs/op
-BenchmarkXid-4              	42286348	       27.95 ns/op	      0 B/op	      0 allocs/op
-BenchmarkXid-8              	40082140	       29.77 ns/op	      0 B/op	      0 allocs/op
-BenchmarkXid-16             	36853810	       32.59 ns/op	      0 B/op	      0 allocs/op
-BenchmarkXid-32             	58261640	       21.51 ns/op	      0 B/op	      0 allocs/op
-BenchmarkKsuid              	15683168	       75.23 ns/op	      0 B/op	       0 allocs/op
-BenchmarkKsuid-2            	14172432	       84.61 ns/op	      0 B/op	       0 allocs/op
-BenchmarkKsuid-4            	11290425	      101.4 ns/op	      0 B/op	       0 allocs/op
-BenchmarkKsuid-8            	9389043	      119.3 ns/op	      0 B/op	       0 allocs/op
-BenchmarkKsuid-16           	7758454	      153.2 ns/op	      0 B/op	       0 allocs/op
-BenchmarkKsuid-32           	6843870	      181.9 ns/op	      0 B/op	       0 allocs/op
-BenchmarkGoogleUuid         	24592844	       47.72 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuid-2       	29907156	       37.78 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuid-4       	36956997	       31.78 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuid-8       	44705392	       29.42 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuid-16      	38979994	       33.91 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuid-32      	43177587	       28.15 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuidV7       	14226376	       83.90 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuidV7-2     	12127534	       89.25 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuidV7-4     	12975457	       92.48 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuidV7-8     	12842493	       95.62 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuidV7-16    	10053843	      119.1 ns/op	     16 B/op	       1 allocs/op
-BenchmarkGoogleUuidV7-32    	7877816	      152.3 ns/op	     16 B/op	       1 allocs/op
-BenchmarkUlid               	19653237	       60.15 ns/op	     16 B/op	       1 allocs/op
-BenchmarkUlid-2             	29194627	       39.72 ns/op	     16 B/op	       1 allocs/op
-BenchmarkUlid-4             	42736906	       29.85 ns/op	     16 B/op	       1 allocs/op
-BenchmarkUlid-8             	38114436	       30.23 ns/op	     16 B/op	       1 allocs/op
-BenchmarkUlid-16            	39977670	       34.00 ns/op	     16 B/op	       1 allocs/op
-BenchmarkUlid-32            	41136363	       28.09 ns/op	     16 B/op	       1 allocs/op
-BenchmarkBetterguid         	25478740	       46.51 ns/op	     24 B/op	       1 allocs/op
-BenchmarkBetterguid-2       	24268438	       47.96 ns/op	     24 B/op	       1 allocs/op
-BenchmarkBetterguid-4       	18773090	       64.66 ns/op	     24 B/op	       1 allocs/op
-BenchmarkBetterguid-8       	14096698	       81.05 ns/op	     24 B/op	       1 allocs/op
-BenchmarkBetterguid-16      	10897140	      110.5 ns/op	     24 B/op	       1 allocs/op
-BenchmarkBetterguid-32      	9171368	      132.2 ns/op	     24 B/op	       1 allocs/op
+BenchmarkKid                    41533827                28.76 ns/op            0 B/op          0 allocs/op
+BenchmarkKid-2                  38674018                27.40 ns/op            0 B/op          0 allocs/op
+BenchmarkKid-4                  37863033                30.27 ns/op            0 B/op          0 allocs/op
+BenchmarkKid-8                  36482983                30.77 ns/op            0 B/op          0 allocs/op
+BenchmarkKid-16                 36459794                32.86 ns/op            0 B/op          0 allocs/op
+BenchmarkKid-32                 51824209                22.21 ns/op            0 B/op          0 allocs/op
+BenchmarkXid                    43901444                27.24 ns/op            0 B/op          0 allocs/op
+BenchmarkXid-2                  43453052                27.52 ns/op            0 B/op          0 allocs/op
+BenchmarkXid-4                  39284581                30.41 ns/op            0 B/op          0 allocs/op
+BenchmarkXid-8                  37457912                29.92 ns/op            0 B/op          0 allocs/op
+BenchmarkXid-16                 42305404                32.60 ns/op            0 B/op          0 allocs/op
+BenchmarkXid-32                 49687428                23.60 ns/op            0 B/op          0 allocs/op
+BenchmarkKsuid                  14513505                73.96 ns/op            0 B/op          0 allocs/op
+BenchmarkKsuid-2                14622558                81.02 ns/op            0 B/op          0 allocs/op
+BenchmarkKsuid-4                12095218                99.58 ns/op            0 B/op          0 allocs/op
+BenchmarkKsuid-8                10276538               115.3 ns/op             0 B/op          0 allocs/op
+BenchmarkKsuid-16                8196723               144.7 ns/op             0 B/op          0 allocs/op
+BenchmarkKsuid-32                6695262               180.4 ns/op             0 B/op          0 allocs/op
+BenchmarkGoogleUuid             24344097                48.76 ns/op           16 B/op          1 allocs/op
+BenchmarkGoogleUuid-2           28380946                39.49 ns/op           16 B/op          1 allocs/op
+BenchmarkGoogleUuid-4           37152949                32.00 ns/op           16 B/op          1 allocs/op
+BenchmarkGoogleUuid-8           38207704                30.79 ns/op           16 B/op          1 allocs/op
+BenchmarkGoogleUuid-16          36281703                33.20 ns/op           16 B/op          1 allocs/op
+BenchmarkGoogleUuid-32          49406678                23.73 ns/op           16 B/op          1 allocs/op
+BenchmarkGoogleUuidV7           13475190                84.57 ns/op           16 B/op          1 allocs/op
+BenchmarkGoogleUuidV7-2         13667084                86.01 ns/op           16 B/op          1 allocs/op
+BenchmarkGoogleUuidV7-4         11763496                97.02 ns/op           16 B/op          1 allocs/op
+BenchmarkGoogleUuidV7-8         11672107                98.12 ns/op           16 B/op          1 allocs/op
+BenchmarkGoogleUuidV7-16         9718141               119.8 ns/op            16 B/op          1 allocs/op
+BenchmarkGoogleUuidV7-32         8327942               146.4 ns/op            16 B/op          1 allocs/op
+BenchmarkUlid                   19497514                59.87 ns/op           16 B/op          1 allocs/op
+BenchmarkUlid-2                 28639965                40.13 ns/op           16 B/op          1 allocs/op
+BenchmarkUlid-4                 38506089                30.94 ns/op           16 B/op          1 allocs/op
+BenchmarkUlid-8                 41448169                31.57 ns/op           16 B/op          1 allocs/op
+BenchmarkUlid-16                43764876                32.91 ns/op           16 B/op          1 allocs/op
+BenchmarkUlid-32                49642611                23.90 ns/op           16 B/op          1 allocs/op
+BenchmarkBetterguid             24295720                47.29 ns/op           24 B/op          1 allocs/op
+BenchmarkBetterguid-2           23041214                51.54 ns/op           24 B/op          1 allocs/op
+BenchmarkBetterguid-4           18995668                63.57 ns/op           24 B/op          1 allocs/op
+BenchmarkBetterguid-8           14768418                78.54 ns/op           24 B/op          1 allocs/op
+BenchmarkBetterguid-16          11438616               101.8 ns/op            24 B/op          1 allocs/op
+BenchmarkBetterguid-32           9439485               127.4 ns/op            24 B/op          1 allocs/op
 PASS
-ok  	github.com/mwyvr/kid/eval/bench	53.240s
+ok      github.com/mwyvr/kid/eval/bench 54.274s
 ```
