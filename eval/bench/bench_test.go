@@ -14,7 +14,7 @@ import (
 	"github.com/segmentio/ksuid"
 )
 
-// kid ids incorporate a timestamp in milliseconds + sequence + a 2-byte random value supplied by crypto/rand
+// kid ids incorporate a timestamp in milliseconds + sequence + a 2-byte random value from math/rand/v2 (ChaCha8)
 var resultKID kid.ID
 
 func BenchmarkKid(b *testing.B) {
