@@ -2,11 +2,15 @@ package kid
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 type test struct {
@@ -123,26 +127,23 @@ func TestNew(t *testing.T) {
 func TestNewUnique(t *testing.T) {
 	// Generate N ids, see if all unique
 	// Parallel generation test is in ./cmd/eval/uniqcheck/main.go
-	count := 10000
+	count := 100000
 	ids := make([]ID, count)
+	seen := make(map[ID]struct{}, count)
 	for i := range count {
 		ids[i] = New()
+		if _, dup := seen[ids[i]]; dup {
+			t.Fatalf("generated ID is not unique (%d) %v", i, ids[i])
+		}
+		seen[ids[i]] = struct{}{}
 	}
 	for i := 1; i < count; i++ {
-		prevID := ids[i-1]
-		id := ids[i]
-		// Test for uniqueness among all other generated ids
-		for j, tid := range ids {
-			if j != i {
-				// can't use ID.Compare for this test as it compares only the time
-				// component of IDs
-				if bytes.Equal(id[:], tid[:]) {
-					t.Errorf("generated ID is not unique (%d/%d)\n%v", i, j, ids)
-				}
-			}
+		// Each ID must sort strictly after its predecessor
+		if ids[i].Compare(ids[i-1]) <= 0 {
+			t.Errorf("ID %d does not sort after its predecessor", i)
 		}
 		// Check that timestamp was incremented and is within 1000 milliseconds of the previous one
-		milli := id.Time().Sub(prevID.Time()).Milliseconds()
+		milli := ids[i].Time().Sub(ids[i-1].Time()).Milliseconds()
 		if milli < 0 || milli > 1000 {
 			t.Error("wrong timestamp in generated ID")
 		}
@@ -159,7 +160,6 @@ func TestID_IsNil(t *testing.T) {
 		{name: "Nil ID", id: ID{}, want: true},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if got, want := tt.id.IsNil(), tt.want; got != want {
 				t.Errorf("IsNil() = %v, want %v", got, want)
@@ -177,22 +177,18 @@ func TestID_IsZero(t *testing.T) {
 
 func TestInvalid(t *testing.T) {
 	for i, v := range tests {
-		if !v.iskid {
-			t.Run(fmt.Sprintf("Test%d", i), func(t *testing.T) {
-				_, err := FromString(v.encoded)
-				if err == nil {
-					t.Errorf("invalid encoded %v, FromString() should be err", v.encoded)
-				}
-			})
+		if v.iskid {
+			continue
 		}
-		if !v.iskid {
-			t.Run(fmt.Sprintf("Test%d", i), func(t *testing.T) {
-				id, _ := FromString(v.encoded)
-				if id != nilID {
-					t.Errorf("invalid encoded %v returned %v, FromString() should return nilID", v.encoded, v.id[:])
-				}
-			})
-		}
+		t.Run(fmt.Sprintf("Test%d", i), func(t *testing.T) {
+			id, err := FromString(v.encoded)
+			if err == nil {
+				t.Errorf("invalid encoded %v, FromString() should be err", v.encoded)
+			}
+			if id != nilID {
+				t.Errorf("invalid encoded %v returned %v, FromString() should return nilID", v.encoded, v.id[:])
+			}
+		})
 	}
 }
 
@@ -332,17 +328,25 @@ func TestID_UnmarshalText(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var id ID
-			if err := id.UnmarshalText([]byte(tt.encoded)); (err != nil) != tt.wantErr {
+			// pre-fill so the error path's reset-to-nilID is actually exercised
+			id := ID{0xde, 0xca, 0xfb, 0xad, 0xde, 0xca, 0xfb, 0xad, 0xde, 0xca}
+			err := id.UnmarshalText([]byte(tt.encoded))
+			if (err != nil) != tt.wantErr {
 				t.Errorf("ID.UnmarshalText() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !tt.wantErr && tt.id.String() != tt.encoded {
-				t.Errorf("ID.UnmarshalText() got: %v, want encoded: %v", tt.id.String(), tt.encoded)
-			}
-			if err := id.UnmarshalText([]byte(tt.encoded)); err != nil {
+			if err != nil {
+				// on error, id must be reset to the nil ID
 				if id != nilID {
 					t.Errorf("ID.UnmarshalText(%s) got: %v, want nilID %v", tt.encoded, id, nilID)
 				}
+				return
+			}
+			// the decoded value must equal the expected ID, and roundtrip
+			if id != tt.id {
+				t.Errorf("ID.UnmarshalText(%s) decoded: %v, want: %v", tt.encoded, id, tt.id)
+			}
+			if id.String() != tt.encoded {
+				t.Errorf("ID.UnmarshalText() roundtrip got: %v, want: %v", id.String(), tt.encoded)
 			}
 		})
 	}
@@ -485,9 +489,9 @@ func TestIDDriverScanError(t *testing.T) {
 	}
 	if got, want := id.Scan("0"), ErrInvalidID; got != want {
 		t.Errorf("Scan() err=%v, want %v", got, want)
-		if id != nilID {
-			t.Errorf("Scan() id=%v, want %v", got, nilID)
-		}
+	}
+	if id != nilID {
+		t.Errorf("Scan() id=%v, want %v", id, nilID)
 	}
 }
 
@@ -502,6 +506,49 @@ func TestIDDriverScanByteFromDatabase(t *testing.T) {
 	want := ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}
 	if !bytes.Equal(got[:], want[:]) {
 		t.Errorf("Scan() = %v, want %v", got, want)
+	}
+}
+
+func TestIDDriverScanBinary(t *testing.T) {
+	// Scan must also accept the 10-byte binary form, e.g. from a BLOB column
+	want := ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}
+	got := ID{}
+	if err := got.Scan(want.Bytes()); err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Errorf("Scan(binary) = %v, want %v", got, want)
+	}
+	// a []byte of any other invalid length must fail
+	if err := got.Scan([]byte{0x1, 0x2, 0x3}); err != ErrInvalidID {
+		t.Errorf("Scan(3 bytes) err=%v, want %v", err, ErrInvalidID)
+	}
+}
+
+func TestIDUnmarshalJSON_RejectsNonString(t *testing.T) {
+	// A bare JSON number of length encodedLen+2 is composed entirely of
+	// valid alphabet characters once the delimiters are stripped; without
+	// the quote check in UnmarshalJSON it decoded silently.
+	v := jsonType{}
+	if err := json.Unmarshal([]byte(`{"ID":123456789012345678}`), &v); err != ErrInvalidID {
+		t.Errorf("json.Unmarshal(18-digit number) err=%v, want %v", err, ErrInvalidID)
+	}
+	var id ID
+	if err := id.UnmarshalJSON([]byte(`123456789012345678`)); err != ErrInvalidID {
+		t.Errorf("UnmarshalJSON(number) err=%v, want %v", err, ErrInvalidID)
+	}
+	if id != nilID {
+		t.Errorf("UnmarshalJSON(number) id=%v, want nilID", id)
+	}
+	// mismatched/absent quotes of the right total length must also fail
+	for _, b := range []string{
+		`'06bqer9xnm79tfnl'`,
+		`06bqer9xnm79tfnl00`,
+		`"06bqer9xnm79tfnl'`,
+	} {
+		if err := id.UnmarshalJSON([]byte(b)); err != ErrInvalidID {
+			t.Errorf("UnmarshalJSON(%s) err=%v, want %v", b, err, ErrInvalidID)
+		}
 	}
 }
 
@@ -534,6 +581,13 @@ func TestCompare(t *testing.T) {
 		{tests[0].id, tests[0].id, 0},
 		{tests[2].id, tests[1].id, -1},
 		{tests[5].id, tests[4].id, -1},
+		// identical timestamp+sequence, differing only in the random bytes;
+		// Compare considers all 10 bytes and must not report equality
+		{
+			ID{0x0, 0xa2, 0x48, 0x34, 0xcd, 0x92, 0x0, 0x0, 0x68, 0x8e},
+			ID{0x0, 0xa2, 0x48, 0x34, 0xcd, 0x92, 0x0, 0x0, 0x68, 0x8f},
+			-1,
+		},
 	}
 	for _, p := range pairs {
 		if p.expected != p.left.Compare(p.right) {
@@ -546,46 +600,6 @@ func TestCompare(t *testing.T) {
 }
 
 var sortTests = []ID{tests[0].id, tests[1].id, tests[2].id, tests[3].id, tests[4].id, tests[5].id}
-
-func TestSorter_Len(t *testing.T) {
-	if got, want := sorter([]ID{}).Len(), 0; got != want {
-		t.Errorf("Len() %v, want %v", got, want)
-	}
-	if got, want := sorter(sortTests).Len(), 6; got != want {
-		t.Errorf("Len() %v, want %v", got, want)
-	}
-}
-
-func TestSorter_Less(t *testing.T) {
-	// sorted (ascending) should be IDs 2, 3, 0, 1
-	sorter := sorter(sortTests)
-	if !sorter.Less(0, 1) {
-		t.Errorf("Less(0, 1) not true")
-	}
-	if sorter.Less(3, 2) {
-		t.Errorf("Less(2, 1) true")
-	}
-	if sorter.Less(0, 0) {
-		t.Errorf("Less(0, 0) true")
-	}
-}
-
-func TestSorter_Swap(t *testing.T) {
-	ids := make([]ID, 0)
-	ids = append(ids, sortTests...)
-	sorter := sorter(ids)
-	sorter.Swap(0, 1)
-	if got, want := ids[0], sortTests[1]; !reflect.DeepEqual(got, want) {
-		t.Error("ids[0] != IDList[1]")
-	}
-	if got, want := ids[1], sortTests[0]; !reflect.DeepEqual(got, want) {
-		t.Error("ids[1] != IDList[0]")
-	}
-	sorter.Swap(2, 2)
-	if got, want := ids[2], sortTests[2]; !reflect.DeepEqual(got, want) {
-		t.Error("ids[2], IDList[2]")
-	}
-}
 
 func TestSort(t *testing.T) {
 	ids := make([]ID, 0)
@@ -654,12 +668,13 @@ func BenchmarkFromString(b *testing.B) {
 func ExampleNew() {
 	id := New()
 	fmt.Printf(`ID:
-    String()  %s
+    String()    %s
     Timestamp() %d
-    Sequence() %d
-    Random()  %d 
-    Time()    %v
-    Bytes()   %3v\n`, id.String(), id.Timestamp(), id.Sequence(), id.Random(), id.Time().UTC(), id.Bytes())
+    Sequence()  %d
+    Random()    %d
+    Time()      %v
+    Bytes()     %3v
+`, id.String(), id.Timestamp(), id.Sequence(), id.Random(), id.Time().UTC(), id.Bytes())
 }
 
 func ExampleFromString() {
@@ -669,4 +684,133 @@ func ExampleFromString() {
 	}
 	fmt.Println(id.Timestamp(), id.Random())
 	// Output: 946684799999 41439
+}
+
+// resetClock saves and restores the getTS globals so clock-manipulating
+// tests leave the package in its original state. Tests using this must not
+// run in parallel.
+func resetClock(t *testing.T) {
+	t.Helper()
+	savedNow := timeNow
+	savedLast := lastTime.Load()
+	t.Cleanup(func() {
+		timeNow = savedNow
+		lastTime.Store(savedLast)
+	})
+}
+
+// TestGetTSClockRegression verifies the monotonicity guarantee when the wall
+// clock steps backwards (e.g. NTP correction): ts+seq must still increase.
+func TestGetTSClockRegression(t *testing.T) {
+	resetClock(t)
+
+	base := time.Date(2026, 7, 6, 12, 0, 0, 500_000, time.UTC)
+	timeNow = func() time.Time { return base }
+	a := New()
+
+	// step the clock back one hour
+	timeNow = func() time.Time { return base.Add(-time.Hour) }
+	b := New()
+	if b.Compare(a) <= 0 {
+		t.Errorf("ID generated after clock regression does not sort after predecessor: %v <= %v", b, a)
+	}
+	if b.Timestamp() < a.Timestamp() {
+		t.Errorf("timestamp regressed: %d < %d", b.Timestamp(), a.Timestamp())
+	}
+}
+
+// TestGetTSSequenceBorrow verifies that sequence overflow within a single
+// millisecond carries into the timestamp rather than repeating or wrapping.
+func TestGetTSSequenceBorrow(t *testing.T) {
+	resetClock(t)
+
+	fixed := time.Date(2026, 7, 6, 12, 0, 0, 250_000, time.UTC)
+	timeNow = func() time.Time { return fixed }
+
+	milli0, _ := getTS()
+	// force the sequence to its 12-bit maximum for the current millisecond
+	lastTime.Store(milli0<<12 | 0xfff)
+
+	milli1, seq1 := getTS()
+	if milli1 != milli0+1 || seq1 != 0 {
+		t.Errorf("sequence overflow: got milli=%d seq=%d, want milli=%d seq=0", milli1, seq1, milli0+1)
+	}
+}
+
+// TestGetTSBurstMonotonic verifies strictly increasing ts+seq under a frozen
+// clock, where every call takes the catch-up path.
+func TestGetTSBurstMonotonic(t *testing.T) {
+	resetClock(t)
+
+	fixed := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	timeNow = func() time.Time { return fixed }
+
+	prev := int64(-1)
+	for i := range 10000 {
+		m, s := getTS()
+		if s < 0 || s > 0xfff {
+			t.Fatalf("call %d: sequence %d out of 12-bit range", i, s)
+		}
+		now := m<<12 + s
+		if now <= prev {
+			t.Fatalf("call %d: ts+seq not strictly increasing (%d <= %d)", i, now, prev)
+		}
+		prev = now
+	}
+}
+
+// TestEncodingPreservesOrder verifies the documented k-order property of the
+// encoded form: lexicographic order of encoded strings must match byte order
+// of the raw IDs (the alphabet is in ascending ASCII order).
+func TestEncodingPreservesOrder(t *testing.T) {
+	var prev ID
+	prevStr := prev.String()
+	for range 20000 {
+		var id ID
+		rand.Read(id[:])
+		s := id.String()
+		rawCmp := prev.Compare(id)
+		strCmp := strings.Compare(prevStr, s)
+		if (rawCmp < 0) != (strCmp < 0) || (rawCmp == 0) != (strCmp == 0) {
+			t.Fatalf("order mismatch: raw=%d str=%d (%v %s / %v %s)", rawCmp, strCmp, prev, prevStr, id, s)
+		}
+		prev, prevStr = id, s
+	}
+}
+
+// TestNewUniqueParallel exercises the lock-free getTS path under concurrent
+// load: IDs generated across goroutines must never repeat a ts+seq pair, and
+// each goroutine must observe strictly increasing IDs. Run with -race.
+func TestNewUniqueParallel(t *testing.T) {
+	const goroutines, per = 8, 50000
+	results := make([][]ID, goroutines)
+	var wg sync.WaitGroup
+	for g := range goroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ids := make([]ID, per)
+			var prev ID
+			for i := range per {
+				ids[i] = New()
+				if ids[i].Compare(prev) <= 0 {
+					t.Errorf("goroutine %d: ID %d does not sort after predecessor", g, i)
+					return
+				}
+				prev = ids[i]
+			}
+			results[g] = ids
+		}()
+	}
+	wg.Wait()
+	all := make([]ID, 0, goroutines*per)
+	for _, r := range results {
+		all = append(all, r...)
+	}
+	Sort(all)
+	for i := 1; i < len(all); i++ {
+		if bytes.Equal(all[i-1][:8], all[i][:8]) {
+			t.Fatalf("duplicate ts+seq across goroutines: %v / %v", all[i-1], all[i])
+		}
+	}
 }
