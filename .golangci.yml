@@ -1,35 +1,45 @@
+version: "2"
 run:
   concurrency: 4
-  timeout: 10m
-  deadline: 5m
   tests: true
-
 linters:
-  enable-all: false
-  disable-all: true
+  default: none
   enable:
-    - staticcheck
     - errcheck
-    - gosimple
-    - govet
-    - unused
-    - gosec
     - gocritic
+    - gosec
+    - govet
     - revive
-    - gofumpt
-
-linters-settings:
-  enabled-checks:
-    - shadow
-
+    - staticcheck
+    - unused
+  settings:
   gocritic:
     enabled-checks:
       - hugeParam
-
-  gofumpt:
-    module-path: ""
-
-issues:
-  exclude-dirs:
-    - vendor/
-    - tmp/
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - vendor/
+      - tmp/
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofumpt
+  settings:
+    gofumpt:
+      module-path: ""
+  exclusions:
+    generated: lax
+    paths:
+      - vendor/
+      - tmp/
+      - third_party$
+      - builtin$
+      - examples$
