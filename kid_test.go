@@ -691,6 +691,17 @@ func BenchmarkFromString(b *testing.B) {
 	benchResultID = r
 }
 
+// JSON decoding performance, the path used when scanning IDs out of a
+// JSON document
+func BenchmarkUnmarshalJSON(b *testing.B) {
+	var r ID
+	payload := []byte(`"06bprlcm7q4z16vh"`)
+	for b.Loop() {
+		_ = r.UnmarshalJSON(payload)
+	}
+	benchResultID = r
+}
+
 // examples
 func ExampleNew() {
 	id := New()
