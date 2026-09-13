@@ -2,16 +2,16 @@ package bench
 
 import (
 	"crypto/rand"
-	"log"
 	"testing"
 	"time"
 
-	guuid "github.com/google/uuid"
-	"github.com/kjk/betterguid"
+	idgen "github.com/devjefster/GoShortUniqueID/idgen"
 	"github.com/mwyvr/kid"
 	"github.com/oklog/ulid"
 	"github.com/rs/xid"
 	"github.com/segmentio/ksuid"
+	"github.com/sony/sonyflake"
+	"uuid"
 )
 
 // kid ids incorporate a timestamp in milliseconds + sequence + a 2-byte random value from math/rand/v2
@@ -55,33 +55,28 @@ func BenchmarkKsuid(b *testing.B) {
 	})
 }
 
-// uuid ids incorporate crypto/rand generated numbers
-var resultUUID guuid.UUID
+// https://pkg.go.dev/uuid stdlib (Go 1.27+) v4 ids incorporate crypto/rand
+// generated numbers
+var resultUUIDV4 uuid.UUID
 
-func BenchmarkGoogleUuid(b *testing.B) {
-	var r guuid.UUID
+func BenchmarkUuidV4(b *testing.B) {
+	var r uuid.UUID
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			// https://pkg.go.dev/github.com/google/UUID#NewRandom
-			// uuid v4, equiv to NewRandom()
-			r = guuid.New()
+			r = uuid.NewV4()
 		}
-		resultUUID = r
+		resultUUIDV4 = r
 	})
 }
 
-// uuid V7 ids are k-sortable
-var resultUUIDV7 guuid.UUID
+// stdlib uuid V7 ids are k-sortable
+var resultUUIDV7 uuid.UUID
 
-func BenchmarkGoogleUuidV7(b *testing.B) {
-	var r guuid.UUID
-	var err error
+func BenchmarkUuidV7(b *testing.B) {
+	var r uuid.UUID
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			r, err = guuid.NewV7()
-			if err != nil {
-				log.Fatal(err)
-			}
+			r = uuid.NewV7()
 		}
 		resultUUIDV7 = r
 	})
@@ -101,17 +96,42 @@ func BenchmarkUlid(b *testing.B) {
 	})
 }
 
-// https://github.com/kjk/betterguid
-// like rs/xid, uses a monotonically incrementing counter rather than
-// true randomness
-var resultBGUID string
+// https://github.com/sony/sonyflake
+// sonyflake ids incorporate a 10-msec-resolution timestamp + sequence number
+// + machine id; generation is mutex-guarded
+var resultSonyflake uint64
 
-func BenchmarkBetterguid(b *testing.B) {
+func BenchmarkSonyflake(b *testing.B) {
+	fl, err := sonyflake.New(sonyflake.Settings{})
+	if err != nil {
+		b.Fatal(err)
+	}
+	var r uint64
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var err error
+			r, err = fl.NextID()
+			if err != nil {
+				b.Error(err)
+			}
+		}
+		resultSonyflake = r
+	})
+}
+
+// https://github.com/devjefster/GoShortUniqueID
+// goshortuniqueid ids incorporate a second-resolution timestamp + a
+// math/rand random string + a per-generator counter; generation is
+// mutex-guarded
+var resultGSUID string
+
+func BenchmarkGoShortUniqueID(b *testing.B) {
+	gen := idgen.New(0, "", "")
 	var r string
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			r = betterguid.New()
+			r = gen.Generate()
 		}
-		resultBGUID = r
+		resultGSUID = r
 	})
 }

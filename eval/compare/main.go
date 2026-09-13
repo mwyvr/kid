@@ -5,18 +5,19 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base32"
+	"encoding/binary"
 	"fmt"
 	"time"
 
+	idgen "github.com/devjefster/GoShortUniqueID/idgen"
 	"github.com/chilts/sid"
-	"github.com/google/uuid"
-	"github.com/kjk/betterguid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/mwyvr/kid"
 	"github.com/oklog/ulid"
 	"github.com/rs/xid"
 	"github.com/segmentio/ksuid"
 	"github.com/sony/sonyflake"
+	"uuid"
 )
 
 type pkg struct {
@@ -43,7 +44,7 @@ func main() {
 			kid.New().String(),
 			kid.New().String(),
 			kid.New().String(),
-			"unique (ts(ms) + sequence) + crypto/rand",
+			"unique (ts(ms) + sequence) + math/rand/v2",
 			"6 byte ts(millisecond) : 2 byte sequence : 2 byte random",
 		},
 		{
@@ -71,27 +72,27 @@ func main() {
 			"4 byte ts(sec) : 16 byte random",
 		},
 		{
-			"[google/uuid](https://github.com/google/uuid) V4",
-			len(uuid.New()),
-			len(uuid.New().String()),
+			"[uuid](https://pkg.go.dev/uuid) (Go stdlib) V4",
+			len(uuid.NewV4()),
+			len(uuid.NewV4().String()),
 			false,
-			uuid.New().String(),
-			uuid.New().String(),
-			uuid.New().String(),
-			uuid.New().String(),
-			"crypt/rand ",
+			uuid.NewV4().String(),
+			uuid.NewV4().String(),
+			uuid.NewV4().String(),
+			uuid.NewV4().String(),
+			"crypto/rand",
 			"v4: 122 bits random; 6 bits embedding version & variant",
 		},
 		{
-			"[google/uuid](https://github.com/google/uuid) V7",
-			len(newUUIDV7()),
-			len(newUUIDV7().String()),
+			"[uuid](https://pkg.go.dev/uuid) (Go stdlib) V7",
+			len(uuid.NewV7()),
+			len(uuid.NewV7().String()),
 			true,
-			newUUIDV7().String(),
-			newUUIDV7().String(),
-			newUUIDV7().String(),
-			newUUIDV7().String(),
-			"ts(ms) + crypt/rand",
+			uuid.NewV7().String(),
+			uuid.NewV7().String(),
+			uuid.NewV7().String(),
+			uuid.NewV7().String(),
+			"ts(ms) + crypto/rand",
 			"v7: 16 bytes : 48 bits time, 12 bits sequence, 6 bits version/variant, 62 bits random",
 		},
 		{
@@ -120,15 +121,15 @@ func main() {
 		},
 		{
 			"[sony/sonyflake](https://github.com/sony/sonyflake)",
-			16,
+			8,
 			len(newSonyFlake()),
 			true,
 			newSonyFlake(),
 			newSonyFlake(),
 			newSonyFlake(),
 			newSonyFlake(),
-			"ts + counter",
-			"39 bit ts(10msec) 8 bit seq, 16 bit mach id",
+			"ts + sequence + machine id",
+			"39 bit ts(10ms) : 8 bit seq : 16 bit mach id",
 		},
 		{
 			"[oklog/ulid](https://github.com/oklog/ulid)",
@@ -143,16 +144,16 @@ func main() {
 			"6 byte ts(ms) : 10 byte monotonic counter random init per ts(ms)",
 		},
 		{
-			"[kjk/betterguid](https://github.com/kjk/betterguid)",
-			8 + 9, // only available as a string
-			len(betterguid.New()),
-			true,
-			betterguid.New(),
-			betterguid.New(),
-			betterguid.New(),
-			betterguid.New(),
-			"ts + rand-init counter",
-			"8 byte ts(ms) : 9 byte counter random init per ts(ms)",
+			"[devjefster/GoShortUniqueID](https://github.com/devjefster/GoShortUniqueID)",
+			6 + 6 + 2, // only available as a string
+			len(newGSUID()),
+			false,
+			newGSUID(),
+			newGSUID(),
+			newGSUID(),
+			newGSUID(),
+			"ts + math/rand + counter",
+			"6 byte ts(second) : 6 base62 random : 2 byte counter (mod 10000)",
 		},
 	}
 
@@ -170,30 +171,37 @@ func newUlid() ulid.ULID {
 	return ulid.MustNew(ulid.Timestamp(time.Now().UTC()), rand.Reader)
 }
 
-func newUUIDV7() uuid.UUID {
-	r, err := uuid.NewV7()
-	if err != nil {
-		panic(err)
-	}
-	return r
-}
-
-// SonyFlake doesn't provide encoding
 var (
-	sonygen       = sonyflake.NewSonyflake(sonyflake.Settings{})
+	sonygen       = newSonygen()
 	base32Encoder = base32.StdEncoding.WithPadding(base32.NoPadding)
 )
 
-func newSonyFlake() string {
-	if sonygen == nil {
-		panic("could not initialize SonyFlake")
+func newSonygen() *sonyflake.Sonyflake {
+	fl, err := sonyflake.New(sonyflake.Settings{})
+	if err != nil {
+		panic(err)
 	}
+	return fl
+}
+
+// SonyFlake has no built-in string encoding; encode the 8-byte big-endian
+// form with base32, no padding. The base32 alphabet is ASCII-ascending and
+// the time bits lead, so the encoding preserves ID order.
+func newSonyFlake() string {
 	id, err := sonygen.NextID()
 	if err != nil {
 		panic(err)
 	}
-	return base32Encoder.EncodeToString([]byte(fmt.Sprintf("%v", id)))
+	var b [8]byte
+	binary.BigEndian.PutUint64(b[:], id)
+	return base32Encoder.EncodeToString(b[:])
 }
+
+func newGSUID() string {
+	return gsuidGen.Generate()
+}
+
+var gsuidGen = idgen.New(0, "", "")
 
 func newNanoID() string {
 	id, err := gonanoid.New()

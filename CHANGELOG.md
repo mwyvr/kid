@@ -11,6 +11,9 @@
   uniqueness is per process, and the 6-byte timestamp overflows around 2262.
 - `Timestamp()`: single big-endian 64-bit load + shift instead of six
   byte-shifts and ORs.
+- Add `NewWithTime(t)` for generating an ID with a fixed timestamp (tests,
+  backfills, replays); out-of-range timestamps (pre-epoch or beyond the
+  6-byte field, ~year 2262) return `ErrTimestampOutOfRange`.
 - Require Go 1.24+ (committed benchmarks use `testing.B.Loop`).
 - `cmd/kid`: exit 1 when any supplied ID fails to decode; decode IDs from
   piped stdin (`kid -c N | kid` round-trips); terminal stdin still generates.
@@ -25,6 +28,11 @@
   deliberate `math/rand/v2` choice).
 - `eval/*` submodules now carry tracked `go.mod`/`go.sum`; `.gitignore`
   covers build artifacts.
+- `eval/bench`, `eval/compare`: drop discontinued `betterguid` and
+  `google/uuid` in favor of the stdlib `uuid` package; add `sony/sonyflake`
+  and `devjefster/GoShortUniqueID`; sonyflake row now encodes the uint64
+  properly instead of its string form; eval modules require Go 1.27.
+- CI: build and vet the `eval/*` modules; upload coverage to codecov.
 
 ## v1.3.1
 

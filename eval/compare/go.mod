@@ -1,11 +1,10 @@
 module github.com/mwyvr/kid/eval/compare
 
-go 1.24
+go 1.27
 
 require (
 	github.com/chilts/sid v0.0.0-20190607042430-660e94789ec9
-	github.com/google/uuid v1.6.0
-	github.com/kjk/betterguid v0.0.0-20170621091430-c442874ba63a
+	github.com/devjefster/GoShortUniqueID v1.1.1
 	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/mwyvr/kid v1.3.0
 	github.com/oklog/ulid v1.3.1

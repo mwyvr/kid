@@ -1,10 +1,10 @@
-github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
-github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/kjk/betterguid v0.0.0-20170621091430-c442874ba63a h1:b+Gt8sQs//Sl5Dcem5zP9Qc2FgEUAygREa2AAa2Vmcw=
-github.com/kjk/betterguid v0.0.0-20170621091430-c442874ba63a/go.mod h1:uxRAhHE1nl34DpWgfe0CYbNYbCnYplaB6rZH9ReWtUk=
+github.com/devjefster/GoShortUniqueID v1.1.1 h1:ja7Lv3mPt0VTD8hf5J5ioJchfbW7qJpB/v7u0Ep55hk=
+github.com/devjefster/GoShortUniqueID v1.1.1/go.mod h1:bEGEkCr40iBv/zzelWoP5nbiysPnuZzSCuM0y2i76D8=
 github.com/oklog/ulid v1.3.1 h1:EGfNDEx6MqHz8B3uNV6QAib1UR2Lm97sHi3ocA6ESJ4=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/rs/xid v1.6.0 h1:fV591PaemRlL6JfRxGDEPl69wICngIQ3shQtzfy2gxU=
 github.com/rs/xid v1.6.0/go.mod h1:7XoLgs4eV+QndskICGsho+ADou8ySMSjJKDIan90Nz0=
 github.com/segmentio/ksuid v1.0.4 h1:sBo2BdShXjmcugAMwjugoGUdUV0pcxY5mW4xKRn3v4c=
 github.com/segmentio/ksuid v1.0.4/go.mod h1:/XUiZBD3kVx5SmUOl55voK5yeAbBNNIed+2O73XgrPE=
+github.com/sony/sonyflake v1.3.0 h1:tiB4Dlp0lnmKp/h6BLXA14P8Qi+LYS9+0QRpcrKHvg4=
+github.com/sony/sonyflake v1.3.0/go.mod h1:LORtCywH/cq10ZbyfhKrHYgAUGH7mOBa76enV9txy/Y=
