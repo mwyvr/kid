@@ -18,7 +18,12 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
     - run: go vet ./...
-    - run: go test -race -count=1 -v .
+    - run: go test -race -count=1 -v -coverprofile=coverage.out .
+    - uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: coverage.out
+        fail_ci_if_error: false
   lint:
     runs-on: ubuntu-latest
     steps:
