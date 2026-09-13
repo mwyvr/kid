@@ -123,6 +123,51 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestNewWithTime(t *testing.T) {
+	tm := time.Date(2026, 9, 12, 23, 4, 5, 123_456_000, time.UTC)
+	id, err := NewWithTime(tm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := id.Timestamp(), tm.UnixMilli(); got != want {
+		t.Errorf("Timestamp = %d, want %d", got, want)
+	}
+	if got, want := id.Sequence(), int32(int64(tm.Nanosecond())%nanoPerMilli>>8); got != want {
+		t.Errorf("Sequence = %d, want %d", got, want)
+	}
+	if got := id.Time().UTC(); !got.Equal(tm.Truncate(time.Millisecond)) {
+		t.Errorf("Time = %v, want %v", got, tm.Truncate(time.Millisecond))
+	}
+	// Round trip through the encoded form.
+	if back, err := FromString(id.String()); err != nil || back != id {
+		t.Errorf("round trip: %v, %v", back, err)
+	}
+	// IDs preserve time order.
+	if earlier, err := NewWithTime(tm.Add(-time.Hour)); err != nil || earlier.Compare(id) >= 0 {
+		t.Errorf("earlier ID does not sort first: %v, %v", earlier, err)
+	}
+	// A time with no sub-millisecond component gets sequence zero.
+	if id, err := NewWithTime(time.UnixMilli(123456789)); err != nil || id.Sequence() != 0 {
+		t.Errorf("UnixMilli ID: %v, seq=%d, err=%v", id, id.Sequence(), err)
+	}
+}
+
+func TestNewWithTimeOutOfRange(t *testing.T) {
+	for name, tm := range map[string]time.Time{
+		"before epoch": time.Unix(0, 0).Add(-time.Millisecond),
+		"past field":   time.UnixMilli(1 << 48),
+	} {
+		id, err := NewWithTime(tm)
+		if !errors.Is(err, ErrTimestampOutOfRange) || id != ZeroID {
+			t.Errorf("%s: got %v, %v; want ZeroID, ErrTimestampOutOfRange", name, id, err)
+		}
+	}
+	// The largest representable millisecond is accepted.
+	if _, err := NewWithTime(time.UnixMilli(1<<48 - 1)); err != nil {
+		t.Errorf("max milli: %v", err)
+	}
+}
+
 func TestNewUnique(t *testing.T) {
 	// Generate N ids, see if all unique
 	// Parallel generation test is in ./eval/uniqcheck/main.go

@@ -88,6 +88,9 @@ var (
 	// ErrInvalidID is returned when decoding input that is not a valid
 	// kid encoding.
 	ErrInvalidID = errors.New("kid: invalid id")
+	// ErrTimestampOutOfRange is returned by NewWithTime when t does not fit
+	// the 6-byte millisecond field: before 1970 or after ~2262.
+	ErrTimestampOutOfRange = errors.New("kid: timestamp out of range")
 )
 
 func init() {
@@ -109,16 +112,39 @@ func init() {
 // the wall clock steps backwards (see getTS).
 func New() (id ID) {
 	t, s := getTS()
+	return buildID(t, s)
+}
+
+// NewWithTime generates a new ID with the given timestamp. The sequence is
+// derived from t's sub-millisecond component, as in New.
+//
+// NewWithTime does not draw from New's monotonic sequence, so its IDs are
+// not ordered with respect to New() output and ts+seq uniqueness against
+// New is not guaranteed. Use it where you control generation for a key
+// space: tests, backfills, replays.
+func NewWithTime(t time.Time) (id ID, err error) {
+	milli := t.UnixMilli()
+	if milli < 0 || milli >= 1<<48 {
+		return ZeroID, ErrTimestampOutOfRange
+	}
+	// Nanosecond stays well-defined where UnixNano would overflow.
+	sub := int64(t.Nanosecond()) % nanoPerMilli
+	return buildID(milli, sub>>8), nil
+}
+
+// buildID lays out milli (48 bits), seq (12 bits), and 2 random bytes.
+// Callers must keep milli and seq in range.
+func buildID(milli, seq int64) (id ID) {
 	// timestamp, 6 bytes, big endian
-	id[0] = byte(t >> 40)
-	id[1] = byte(t >> 32)
-	id[2] = byte(t >> 24)
-	id[3] = byte(t >> 16)
-	id[4] = byte(t >> 8)
-	id[5] = byte(t)
+	id[0] = byte(milli >> 40)
+	id[1] = byte(milli >> 32)
+	id[2] = byte(milli >> 24)
+	id[3] = byte(milli >> 16)
+	id[4] = byte(milli >> 8)
+	id[5] = byte(milli)
 	// sequence, 2 bytes, big endian
-	id[6] = byte(s >> 8)
-	id[7] = byte(s)
+	id[6] = byte(seq >> 8)
+	id[7] = byte(seq)
 	// 2 random bytes; IDs are predictable by design, see the package doc
 	r := mrand.Uint32()
 	id[8] = byte(r >> 8)
