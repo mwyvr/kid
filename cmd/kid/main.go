@@ -69,8 +69,8 @@ func main() {
 	os.Exit(decodeIDs(strings.Fields(string(data))))
 }
 
-// decodeIDs decodes and prints each kid value. It returns a non-zero exit
-// code if any value fails to decode, so pipelines can detect bad input.
+// decodeIDs decodes and prints each value, returning 1 if any fails, so
+// pipelines can detect bad input.
 func decodeIDs(vals []string) int {
 	failed := false
 	for _, arg := range vals {
@@ -90,8 +90,7 @@ func decodeIDs(vals []string) int {
 	return 0
 }
 
-// isTerminal reports whether f is attached to a terminal, as opposed to
-// receiving piped input.
+// isTerminal reports whether f is a terminal, not piped input.
 func isTerminal(f *os.File) bool {
 	info, err := f.Stat()
 	return err == nil && info.Mode()&os.ModeCharDevice != 0
@@ -101,9 +100,8 @@ func asHex(b []byte) string {
 	return hex.EncodeToString(b)
 }
 
-// version reports the module version recorded by the Go toolchain: the tagged
-// version (e.g. v1.3.0) when installed via `go install .../cmd/kid@<tag>`, a
-// pseudo-version for untagged commits, or "(devel)" for local builds.
+// version reports the module version from the build info: a tagged or
+// pseudo-version when installed from a module, "(unknown)" for local builds.
 func version() string {
 	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" {
 		return bi.Main.Version
