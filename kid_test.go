@@ -137,14 +137,18 @@ func TestNewUnique(t *testing.T) {
 		seen[ids[i]] = struct{}{}
 	}
 	for i := 1; i < count; i++ {
-		// Each ID must sort strictly after its predecessor
+		// Each ID must sort strictly after its predecessor. This also
+		// implies the embedded timestamp never decreases, since the
+		// timestamp occupies the leading bytes. There is deliberately no
+		// upper bound on the delta: a forward wall-clock step (e.g. an
+		// NTP correction or a CI VM) legitimately jumps the timestamp
+		// more than 1000 ms between two consecutive calls. The clock
+		// behaviors are pinned deterministically by the stubbed-clock
+		// tests TestGetTSClockRegression (backwards step),
+		// TestGetTSSequenceBorrow (sequence overflow), and
+		// TestGetTSBurstMonotonic (saturated burst).
 		if ids[i].Compare(ids[i-1]) <= 0 {
 			t.Errorf("ID %d does not sort after its predecessor", i)
-		}
-		// Check that timestamp was incremented and is within 1000 milliseconds of the previous one
-		milli := ids[i].Time().Sub(ids[i-1].Time()).Milliseconds()
-		if milli < 0 || milli > 1000 {
-			t.Error("wrong timestamp in generated ID")
 		}
 	}
 }
