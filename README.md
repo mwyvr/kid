@@ -175,27 +175,7 @@ kid $(kid -c 4)
 
 ## Change Log
 
-v1.3.0: lock-free New(), full-width Compare, hardened decode paths
-- New() is lock-free and allocation-free: atomic CAS + wait-free
-  increment replaces the mutex; trailing bytes from math/rand/v2 replace
-  per-call crypto/rand
-- Compare/Sort consider all 10 bytes, consistent with ==
-- UnmarshalJSON rejects non-string JSON values (bug fix)
-- Scan accepts the 10-byte binary form
-- New tests: clock regression, sequence borrow, parallel CAS stress,
-  three fuzz targets; eval/uniqcheck rewritten; CI runs -race on
-  1.24.x and stable across linux/macos/windows.
-
-main:
-- Raise minimum supported Go version to 1.24 (committed benchmarks use
-  testing.B.Loop); CI adds a golangci-lint job and runs
-  `go test -race -count=1` on 1.24.x and stable.
-- Drop minimum supported Go version to 1.22, thanks to heads up from @sergeevabc.
-
-v1.2.0 released:
-- 2025-03-06 Forked [rid](https://github.com/mwyvr/rid) in favour of kid for
-  true k-sortability, requiring a new ID payload, now expected to remain static.
-  Improved code coverage and documentation.
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## Contributing
 
