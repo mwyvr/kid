@@ -46,16 +46,22 @@ func main() {
 	}
 
 	if len(args) > 0 {
-		// attempt to decode each as a kid
+		// attempt to decode each as a kid; remember failures so a
+		// pipeline can detect them via the exit status
+		failed := 0
 		for _, arg := range args {
 			id, err := kid.FromString(arg)
 			if err != nil {
 				fmt.Printf("[%s] %s\n", arg, err)
+				failed++
 				continue
 			}
 
 			fmt.Printf("%s ts:%d seq:%4d rnd:%5d %s ID{%s }\n", arg,
 				id.Timestamp(), id.Sequence(), id.Random(), id.Time(), asHex(id.Bytes()))
+		}
+		if failed > 0 {
+			os.Exit(1)
 		}
 	} else {
 		// generate one or -c N ids
