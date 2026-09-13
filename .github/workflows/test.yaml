@@ -18,7 +18,8 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
     - run: go vet ./...
-    - run: go test -race -count=1 -v -coverprofile=coverage.out .
+    # Space-separated flag form: PowerShell splits -coverprofile=value on '='
+    - run: go test -race -count=1 -v -coverprofile coverage.out .
     - uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
