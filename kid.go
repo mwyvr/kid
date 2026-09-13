@@ -6,11 +6,13 @@ The 10-byte binary representation of an ID is composed of:
 
   - 6-byte value representing Unix time in milliseconds
   - 2-byte sequence, and,
-  - 2-byte random value (ChaCha8, seeded by the Go runtime from OS entropy).
+  - 2-byte random value (math/rand/v2, seeded by the Go runtime from OS entropy).
 
 IDs encode (base32) as 16-byte URL-friendly strings. The encoding alphabet is
 in ascending ASCII order, so the encoded form preserves the sort order of the
-binary form: IDs are k-orderable in either representation.
+binary form: IDs are k-orderable in either representation. Decoding is
+case-sensitive: only the lowercase alphabet is accepted, uppercase input is
+rejected.
 
 kid.ID features:
 
@@ -19,7 +21,7 @@ kid.ID features:
     increasing within a process, even if the wall clock steps backwards.
   - Lock-free generation: New scales with cores instead of serializing on a
     mutex.
-  - 2 bytes of trailing randomness from math/rand/v2's ChaCha8 generator.
+  - 2 bytes of trailing randomness from math/rand/v2.
   - K-orderable in both binary and base32 encoded representations.
   - URL-friendly custom encoding without the vowels a, i, o, and u.
   - Automatic (un)/marshalling for SQL and JSON.
@@ -31,6 +33,23 @@ process. Bursts beyond that rate borrow sequence slots from future
 milliseconds: IDs remain unique and strictly k-sortable, but their embedded
 timestamps lead the wall clock until generation slows. Treat the embedded
 time as approximate metadata rather than an exact wall-clock instant.
+
+Uniqueness scope: the guarantee is per process. Across processes or machines
+there is no coordination; two processes that derive the same
+timestamp+sequence in the same window are separated only by the 16 random
+bits, a 1-in-65,536 chance per such coincidence. Use a coordinated or longer
+ID (xid, uuid) when cross-machine uniqueness is required.
+
+The uniqueness and k-sortability guarantees are enforced, not merely
+asserted: TestNewUnique and TestNewUniqueParallel (run with -race) check
+ordering and ts+seq uniqueness, the fuzz targets hammer the decode paths,
+and eval/uniqcheck generates millions of IDs under contention and verifies
+them post-hoc.
+
+The zero value of ID, ZeroID, is both the "nil" sentinel (see IsNil) and a
+decodable, valid ID: FromString("0000000000000000") decodes to it. When a
+JSON null is unmarshalled into a *ID, encoding/json sets the pointer to nil
+without calling UnmarshalJSON.
 
 Security note: an ID carries only 16 bits of randomness alongside values
 derived from the clock; IDs are predictable by design. Do not use kid IDs
@@ -66,6 +85,7 @@ package kid
 import (
 	"bytes"
 	"database/sql/driver"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	mrand "math/rand/v2"
@@ -85,8 +105,10 @@ const (
 )
 
 var (
-	nilID ID        // nilID represents the zero-value of an ID
-	dec   [256]byte // dec is the base32 decoding map
+	// ZeroID is the zero value of an ID. Use IsNil or IsZero to check for it.
+	// It is compared against, never copied: do not modify it.
+	ZeroID ID
+	dec    [256]byte // dec is the base32 decoding map
 
 	// ErrInvalidID represents an error state, typically when decoding invalid input
 	ErrInvalidID = errors.New("kid: invalid id")
@@ -108,19 +130,19 @@ func init() {
 //
 //   - 6 bytes, timestamp, a Unix time in milliseconds
 //   - 2 bytes, sequence, a derived value ensuring uniqueness and order
-//   - 2 bytes, random value from math/rand/v2's ChaCha8 generator
+//   - 2 bytes, random value from math/rand/v2
 //
 // New is lock-free and free of retry loops: the timestamp+sequence is
 // claimed with at most one atomic compare-and-swap followed, if needed, by a
 // wait-free atomic increment, and the random bytes are drawn from
-// math/rand/v2's per-goroutine ChaCha8 state (seeded by the Go runtime from
-// OS entropy), so ID generation scales with cores rather than serializing
-// on a mutex or spinning under contention.
+// math/rand/v2 (seeded by the Go runtime from OS entropy), so ID generation
+// scales with cores rather than serializing on a mutex or spinning under
+// contention.
 //
 // K-orderable: Each subsequent call to New() is guaranteed to produce an ID
 // having a timestamp + sequence value greater than the previously generated ID.
 func New() (id ID) {
-	t, s := getTS() // milli << 12 + seq
+	t, s := getTS() // t = millisecond timestamp, s = sequence number
 	// timestamp, 6 bytes, big endian
 	id[0] = byte(t >> 40)
 	id[1] = byte(t >> 32)
@@ -131,26 +153,29 @@ func New() (id ID) {
 	// sequence, 2 bytes, big endian
 	id[6] = byte(s >> 8)
 	id[7] = byte(s)
-	// Two random bytes from the runtime-seeded ChaCha8 generator; see the
-	// package documentation for the security properties of this choice.
+	// Two random bytes from math/rand/v2; see the package documentation for
+	// the security properties of this choice.
 	r := mrand.Uint32()
 	id[8] = byte(r >> 8)
 	id[9] = byte(r)
 	return id
 }
 
-// IsNil returns true if ID == nilID.
+// IsNil returns true if ID == ZeroID. Note that ZeroID is also a decodable,
+// valid ID (see the package documentation).
 func (id ID) IsNil() bool {
-	return id == nilID
+	return id == ZeroID
 }
 
-// IsZero is an alias of IsNil.
+// IsZero reports whether id is the zero value. It is an alias of IsNil.
 func (id ID) IsZero() bool {
 	return id.IsNil()
 }
 
-// Encode the id using base32 encoding, writing 16 bytes to dst and returning
-// it. Encode panics if len(dst) < 16.
+// Encode provides public access to encode() which encodes id using a custom
+// based32 encoding, writing 16 bytes to dst. Package callers of encode
+// (MarshalText and MarshalJSON) ensure dst has a length of 16; a shorter slice
+// will panic.
 func (id ID) Encode(dst []byte) []byte {
 	encode(dst, id[:])
 	return dst
@@ -207,13 +232,14 @@ func encode(dst, id []byte) {
 func FromBytes(b []byte) (ID, error) {
 	var id ID
 	if len(b) != rawLen {
-		return nilID, ErrInvalidID
+		return ZeroID, ErrInvalidID
 	}
 	copy(id[:], b)
 	return id, nil
 }
 
-// FromString decodes a base32-encoded string to return an ID.
+// FromString decodes a 16-character base32-encoded string to return an ID.
+// Decoding is case-sensitive: uppercase input is rejected with ErrInvalidID.
 func FromString(str string) (ID, error) {
 	var id ID
 	err := id.UnmarshalText([]byte(str))
@@ -221,17 +247,17 @@ func FromString(str string) (ID, error) {
 }
 
 // UnmarshalText implements `encoding.TextUnmarshaler`. text must be a 16-byte
-// base32-encoded value over the kid alphabet; on error, id is set to the nil
-// ID and ErrInvalidID is returned.
+// lowercase base32-encoded value over the kid alphabet; on error, id is set
+// to the nil ID and ErrInvalidID is returned.
 // https://pkg.go.dev/encoding#TextUnmarshaler
 func (id *ID) UnmarshalText(text []byte) error {
 	if len(text) != encodedLen {
-		*id = nilID
+		*id = ZeroID
 		return ErrInvalidID
 	}
 	for _, c := range text {
 		if dec[c] == maxByte {
-			*id = nilID
+			*id = ZeroID
 			return ErrInvalidID
 		}
 	}
@@ -263,6 +289,12 @@ func decode(id *ID, src []byte) {
 
 // Value implements package sql's driver.Valuer, returning the ID in its
 // 16-byte encoded string form, or nil for the nil ID.
+//
+// Value only ever writes the encoded string form. Asymmetric with Scan:
+// Scan also accepts the 10-byte binary form, but nothing written through
+// Value() produces it — an ID scanned from raw bytes is re-encoded to its
+// 16-byte string on the next write. To store the binary form (e.g. in a
+// VARBINARY(10) column), use ValueBinary.
 // https://pkg.go.dev/database/sql/driver#Valuer
 func (id ID) Value() (driver.Value, error) {
 	if id.IsNil() {
@@ -271,9 +303,21 @@ func (id ID) Value() (driver.Value, error) {
 	return id.String(), nil
 }
 
+// ValueBinary is the binary counterpart of Value: it implements
+// driver.Valuer, returning the ID in its 10-byte binary form, or nil for
+// the nil ID. The returned slice is a copy; Scan reads both the binary and
+// the encoded string forms back.
+func (id ID) ValueBinary() (driver.Value, error) {
+	if id.IsNil() {
+		return nil, nil
+	}
+	return id.Bytes(), nil
+}
+
 // Scan implements the sql.Scanner interface, accepting the 16-byte encoded
 // form as a string or []byte, the 10-byte binary form as a []byte, or nil,
-// which yields the nil ID.
+// which yields the nil ID. The binary form can only be read through Scan;
+// use ValueBinary to write it.
 // https://pkg.go.dev/database/sql#Scanner
 func (id *ID) Scan(value any) error {
 	switch val := value.(type) {
@@ -286,22 +330,23 @@ func (id *ID) Scan(value any) error {
 		}
 		return id.UnmarshalText(val)
 	case nil:
-		*id = nilID
+		*id = ZeroID
 		return nil
 	default:
+		*id = ZeroID
 		return fmt.Errorf("kid: scanning unsupported type: %T", value)
 	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.
 //
-// A json value will always be returned; as a nilID or any other binary ID will
+// A json value will always be returned; as a ZeroID or any other binary ID will
 // always encode, error will always be nil.
 //
 // https://golang.org/pkg/encoding/json/#Marshaler
 func (id ID) MarshalJSON() ([]byte, error) {
 	// endless loop if merely return json.Marshal(id)
-	if id == nilID {
+	if id == ZeroID {
 		return []byte("null"), nil
 	}
 	text := make([]byte, encodedLen+2) // +2 accounts for ""
@@ -312,34 +357,44 @@ func (id ID) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface, accepting only
-// null or a quoted 16-character kid encoding.
+// null or a quoted 16-character kid encoding. When a JSON null is
+// unmarshalled into a *ID, encoding/json sets the pointer to nil without
+// calling UnmarshalJSON; the null case handled here applies when decoding
+// into an ID value.
 // https://golang.org/pkg/encoding/json/#Unmarshaler
 func (id *ID) UnmarshalJSON(b []byte) error {
 	if string(b) == "null" {
-		*id = nilID
+		*id = ZeroID
 		return nil
 	}
 	// Only a quoted string is acceptable. Without the quote check, a bare
 	// JSON number of the right length would be accepted, as digits are valid
 	// characters in the kid alphabet.
 	if len(b) != encodedLen+2 || b[0] != '"' || b[len(b)-1] != '"' {
-		*id = nilID
+		*id = ZeroID
 		return ErrInvalidID
 	}
 	return id.UnmarshalText(b[1 : len(b)-1])
 }
 
-// Bytes returns the binary representation of id, which is simply id[:].
+// Bytes returns the binary representation of id. The returned slice is a copy
+// of the internal bytes; modifying it does not affect the ID.
 func (id ID) Bytes() []byte {
-	return id[:]
+	b := make([]byte, rawLen)
+	copy(b, id[:])
+	return b
 }
 
 // Timestamp returns the timestamp component of id as milliseconds since the
 // Unix epoch. Go timestamps are at location UTC.
+//
+// The 6-byte timestamp field can represent time up to approximately the year
+// 2262 (2^48 milliseconds since epoch). Beyond that, the timestamp overflows.
 func (id ID) Timestamp() int64 {
-	b := id[0:6]
-	// Big Endian, no overflow possible
-	return int64(uint64(b[0])<<40 | uint64(b[1])<<32 | uint64(b[2])<<24 | uint64(b[3])<<16 | uint64(b[4])<<8 | uint64(b[5])) //nolint:gosec
+	// Load the first 8 bytes (timestamp + sequence) as one big-endian uint64,
+	// then shift right by 16 to drop the two sequence bytes — one load + one
+	// shift instead of six byte-shifts and five ORs.
+	return int64(binary.BigEndian.Uint64(id[:]) >> 16)
 }
 
 // Time returns the ID's timestamp as a Time value with millisecond resolution
@@ -358,14 +413,14 @@ func (id ID) Time() time.Time {
 func (id ID) Sequence() int32 {
 	b := id[6:8]
 	// Big Endian
-	return int32(uint32(b[0])<<8 | uint32(b[1])) //nolint:gosec
+	return int32(uint32(b[0])<<8 | uint32(b[1]))
 }
 
 // Random returns the two-byte random component of the ID.
 func (id ID) Random() int32 {
 	b := id[8:]
 	// Big Endian
-	return int32(uint32(b[0])<<8 | uint32(b[1])) //nolint:gosec
+	return int32(uint32(b[0])<<8 | uint32(b[1]))
 }
 
 // Compare returns an integer comparing two IDs with `bytes.Compare`
@@ -390,7 +445,7 @@ func Sort(ids []ID) {
 var (
 	// lastTime is the last ts+seq we returned stored as:
 	//
-	//	52 bits of time in milliseconds since epoch
+	//	52 bits of time in milliseconds since epoch (valid until ~2262)
 	//	12 bits of (fractional nanoseconds) >> 8
 	lastTime atomic.Int64
 	timeNow  = time.Now // for testing
@@ -421,7 +476,8 @@ const nanoPerMilli = 1000000
 func getTS() (milli, seq int64) {
 	nano := timeNow().UnixNano()
 	milli = nano / nanoPerMilli
-	// Sequence number is between 0 and 3906 (nanoPerMilli>>8)
+	// Clock-derived sequence is between 0 and 3906 ((nanoPerMilli-1)>>8);
+	// the increment path below can return values up to 4095.
 	seq = (nano - milli*nanoPerMilli) >> 8
 	now := milli<<12 + seq
 	if last := lastTime.Load(); now > last && lastTime.CompareAndSwap(last, now) {

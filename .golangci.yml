@@ -13,9 +13,20 @@ linters:
     - staticcheck
     - unused
   settings:
-  gocritic:
-    enabled-checks:
-      - hugeParam
+    govet:
+      enable:
+        - shadow
+    gocritic:
+      enabled-checks:
+        - hugeParam
+    gosec:
+      excludes:
+        # G404: math/rand/v2 is a deliberate, documented choice (see the
+        # package security note); IDs are predictable by design.
+        - G404
+        # G115: all conversions are over fixed-width ID fields and are safe
+        # by construction.
+        - G115
   exclusions:
     generated: lax
     presets:

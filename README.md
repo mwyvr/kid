@@ -1,4 +1,4 @@
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/mwyvr/kid)[![godoc](http://img.shields.io/badge/godev-reference-blue.svg?style=flat)](https://pkg.go.dev/github.com/mwyvr/kid?tab=doc)[![Test](https://github.com/mwyvr/kid/actions/workflows/test.yaml/badge.svg)](https://github.com/mwyvr/kid/actions/workflows/test.yaml)[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)![Coverage](https://img.shields.io/badge/coverage-92.6%25-brightgreen)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/mwyvr/kid)[![godoc](http://img.shields.io/badge/godev-reference-blue.svg?style=flat)](https://pkg.go.dev/github.com/mwyvr/kid?tab=doc)[![Test](https://github.com/mwyvr/kid/actions/workflows/test.yaml/badge.svg)](https://github.com/mwyvr/kid/actions/workflows/test.yaml)[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # kid
 
 Package kid (K-sortable ID) provides a goroutine-safe generator
@@ -21,8 +21,7 @@ IDs encode (base32) as 16-byte url-friendly strings that look like:
 - Timestamp + sequence is guaranteed to be unique and monotonically increasing
   for each call to New(), even if the wall clock steps backwards.
 - 2 bytes of trailing randomness to avoid counter-based attacks, drawn
-  from math/rand/v2's per-goroutine ChaCha8 generator, seeded by the Go
-  runtime from OS entropy.
+  from math/rand/v2 (seeded by the Go runtime from OS entropy).
 - K-orderable in both binary and base32 encoded representations; the encoding
   alphabet is in ascending ASCII order, so encoded strings sort identically to
   the underlying bytes.
@@ -32,9 +31,9 @@ IDs encode (base32) as 16-byte url-friendly strings that look like:
 - Automatic (un)/marshalling for SQL and JSON.
 - cmd/kid tool for ID generation and introspection.
 
-Requires Go 1.23+; no newer version is needed for performance — benchmarks
-published here were produced with Go 1.26. kid has no dependencies outside
-the standard library.
+Requires Go 1.24+ (the committed benchmarks use `testing.B.Loop`); no newer
+version is needed for performance — the numbers published here were produced
+with Go 1.26. kid has no dependencies outside the standard library.
 
 **Security note**: an ID carries only 16 bits of randomness alongside values
 derived from the clock; IDs are predictable by design. Do not use kid IDs
@@ -135,9 +134,7 @@ ts+seq uniqueness across goroutines):
 
     go test -race -run TestNewUniqueParallel -count=20 .
 
-Fuzzing hammers the decode paths (each target runs separately; failing
-inputs, should one ever appear, land in testdata/fuzz/ and become permanent
-regression tests):
+Fuzzing hammers the decode paths:
 
     go test -fuzz '^FuzzFromString$'    -fuzztime 60s .
     go test -fuzz '^FuzzUnmarshalJSON$' -fuzztime 60s .
@@ -180,17 +177,20 @@ kid $(kid -c 4)
 
 v1.3.0: lock-free New(), full-width Compare, hardened decode paths
 - New() is lock-free and allocation-free: atomic CAS + wait-free
-  increment replaces the mutex; trailing bytes from math/rand/v2
-  (ChaCha8) replace per-call crypto/rand
+  increment replaces the mutex; trailing bytes from math/rand/v2 replace
+  per-call crypto/rand
 - Compare/Sort consider all 10 bytes, consistent with ==
 - UnmarshalJSON rejects non-string JSON values (bug fix)
 - Scan accepts the 10-byte binary form
 - New tests: clock regression, sequence borrow, parallel CAS stress,
   three fuzz targets; eval/uniqcheck rewritten; CI runs -race on
-  1.23.x and stable across linux/macos/windows"
+  1.24.x and stable across linux/macos/windows.
 
 main:
-- Drop minimum supported Go version to 1.23, thanks to heads up from @sergeevabc.
+- Raise minimum supported Go version to 1.24 (committed benchmarks use
+  testing.B.Loop); CI adds a golangci-lint job and runs
+  `go test -race -count=1` on 1.24.x and stable.
+- Drop minimum supported Go version to 1.22, thanks to heads up from @sergeevabc.
 
 v1.2.0 released:
 - 2025-03-06 Forked [rid](https://github.com/mwyvr/rid) in favour of kid for
@@ -210,7 +210,7 @@ A comparison of various Go ID generators:
 
 | Package                                                       | BLen | ELen | K-Sort | Encoded ID and Next                                                                                                                                                  | Unique                                   | Components                                                                            |
 | ------------------------------------------------------------- | ---- | ---- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------- |
-| [mwyvr/kid](https://github.com/mwyvr/kid)                     | 10   | 16   | true   | `06bwz2qyzm14d070`<br>`06bwz2qyzm14fnte`<br>`06bwz2qyzm14hxmf`<br>`06bwz2qyzm14kdl1`                                                                                 | unique (ts(ms) + sequence) + chacha8 rand | 6 byte ts(millisecond) : 2 byte sequence : 2 byte random                              |
+| [mwyvr/kid](https://github.com/mwyvr/kid)                     | 10   | 16   | true   | `06bwz2qyzm14d070`<br>`06bwz2qyzm14fnte`<br>`06bwz2qyzm14hxmf`<br>`06bwz2qyzm14kdl1`                                                                                 | unique (ts(ms) + sequence) + math/rand/v2 | 6 byte ts(millisecond) : 2 byte sequence : 2 byte random                              |
 | [rs/xid](https://github.com/rs/xid)                           | 12   | 20   | true   | `cvhjc0tq9fa75iaa3d00`<br>`cvhjc0tq9fa75iaa3d0g`<br>`cvhjc0tq9fa75iaa3d10`<br>`cvhjc0tq9fa75iaa3d1g`                                                                 | ts(sec) + machineID + pid + counter      | 4 byte ts(sec) : 2 byte mach ID : 2 byte pid : 3 byte monotonic counter               |
 | [segmentio/ksuid](https://github.com/segmentio/ksuid)         | 20   | 27   | true   | `2upRtyliBRn6UnfS2RsdkEIhqbg`<br>`2upRu1TTpojt5KQDykjTjreGXGE`<br>`2upRu0IZ0RbjFMSS1lb0Io3aQ8A`<br>`2upRu2AjlZoy3rnU6MJdqSuDs1H`                                     | ts + crypto/rand                         | 4 byte ts(sec) : 16 byte random                                                       |
 | [google/uuid](https://github.com/google/uuid) V4              | 16   | 36   | false  | `f03fed10-c632-4d06-95b5-6783796e6aaa`<br>`1c6c044b-66db-44e8-ac45-0e4e358dcc1f`<br>`9b26d7cd-d85d-4696-beec-0483d6446e7f`<br>`f2cf8c26-4e3c-4612-865c-2270883456fd` | crypt/rand                               | v4: 122 bits random; 6 bits embedding version & variant                               |

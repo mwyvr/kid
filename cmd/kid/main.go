@@ -2,12 +2,12 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 	"runtime"
 	"runtime/debug"
-	"strings"
 
 	"github.com/mwyvr/kid"
 )
@@ -46,7 +46,7 @@ func main() {
 	}
 
 	if len(args) > 0 {
-		// attempt to decode each as an kid
+		// attempt to decode each as a kid
 		for _, arg := range args {
 			id, err := kid.FromString(arg)
 			if err != nil {
@@ -66,12 +66,7 @@ func main() {
 }
 
 func asHex(b []byte) string {
-	s := []string{}
-	for _, v := range b {
-		s = append(s, fmt.Sprintf(" %#4x", v))
-	}
-
-	return strings.Join(s, ",")
+	return hex.EncodeToString(b)
 }
 
 // version reports the module version recorded by the Go toolchain: the tagged

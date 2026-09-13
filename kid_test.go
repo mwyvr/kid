@@ -20,13 +20,12 @@ type test struct {
 	seq     int32
 	random  int32
 	time    string
-	iskid   bool
+	valid   bool
 }
 
 var tests = []test{
 	// sorted (ascending) should be IDs 2, 3, 0, 5, 4, 1 and then the rest.
 	{
-		// 03f6nlxczw000000 ts:946684799999 seq:   0 rnd:    0 1999-12-31 23:59:59.999 +0000 UTC ID{  0x0, 0xdc, 0x6a, 0xcf, 0xab, 0xff,  0x0,  0x0,  0x0,  0x0 }
 		ID{0x0, 0xdc, 0x6a, 0xcf, 0xab, 0xff, 0x0, 0x0, 0x0, 0x0},
 		"03f6nlxczw000000",
 		946684799999,
@@ -177,7 +176,7 @@ func TestID_IsZero(t *testing.T) {
 
 func TestInvalid(t *testing.T) {
 	for i, v := range tests {
-		if v.iskid {
+		if v.valid {
 			continue
 		}
 		t.Run(fmt.Sprintf("Test%d", i), func(t *testing.T) {
@@ -185,8 +184,8 @@ func TestInvalid(t *testing.T) {
 			if err == nil {
 				t.Errorf("invalid encoded %v, FromString() should be err", v.encoded)
 			}
-			if id != nilID {
-				t.Errorf("invalid encoded %v returned %v, FromString() should return nilID", v.encoded, v.id[:])
+			if id != ZeroID {
+				t.Errorf("invalid encoded %v returned %v, FromString() should return ZeroID", v.encoded, v.id[:])
 			}
 		})
 	}
@@ -194,7 +193,7 @@ func TestInvalid(t *testing.T) {
 
 func TestIDComponents(t *testing.T) {
 	for i, v := range tests {
-		if v.iskid {
+		if v.valid {
 			t.Run(fmt.Sprintf("Test%d", i), func(t *testing.T) {
 				if got, want := v.id.Time().String(), v.time; got != want {
 					t.Errorf("Time() = %v, want %v", got, want)
@@ -236,15 +235,20 @@ func TestSequence(t *testing.T) {
 }
 
 func TestIDTime(t *testing.T) {
-	nilTime := "1970-01-01 00:00:00 +0000 UTC"
-	if nilID.Time().String() != nilTime {
-		t.Errorf("got: %s, want:%s", nilID.Time(), nilTime)
+	ZeroIDTime := "1970-01-01 00:00:00 +0000 UTC"
+	if ZeroID.Time().String() != ZeroIDTime {
+		t.Errorf("got: %s, want:%s", ZeroID.Time(), ZeroIDTime)
+	}
+	// zero-valued ID (all bytes zero) must produce the same time
+	zero := ID{}
+	if zero.Time().String() != ZeroIDTime {
+		t.Errorf("zero ID Time() = %s, want %s", zero.Time().String(), ZeroIDTime)
 	}
 }
 
 func TestIDString(t *testing.T) {
 	for _, v := range tests {
-		if v.iskid {
+		if v.valid {
 			if got, want := v.encoded, v.id.String(); got != want {
 				t.Errorf("String() = %v, want %v", got, want)
 			}
@@ -299,8 +303,8 @@ func TestFromStringInvalid(t *testing.T) {
 	if err != ErrInvalidID {
 		t.Errorf("FromString(062ez870acdtzd2y3qajilou - invalid chars) err=%v, want %v", err, ErrInvalidID)
 	}
-	if id != nilID {
-		t.Errorf("FromString() =%v, there want %v", id, nilID)
+	if id != ZeroID {
+		t.Errorf("FromString() =%v, there want %v", id, ZeroID)
 	}
 }
 
@@ -320,24 +324,24 @@ func TestID_UnmarshalText(t *testing.T) {
 		{ // zzzzzzzzzzzzzzzz ts:281474976710655 seq:65535 rnd:65535 10889-08-02 05:31:50.655 +0000 UTC ID{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }
 			"valid_max2", "zzzzzzzzzzzzzzzz", ID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, false,
 		},
-		{"invalid chars", "000000000000000u", nilID, true},
-		{"invalid length too long", "12345678901", nilID, true},
-		{"invalid length too short", "dfb7emm", nilID, true},
+		{"invalid chars", "000000000000000u", ZeroID, true},
+		{"invalid length too long", "12345678901", ZeroID, true},
+		{"invalid length too short", "dfb7emm", ZeroID, true},
 		{ // 06bprg666xzm7hpg ts:1741277677111 seq:32579 rnd:49871 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
 			"valid id", "06bprg666xzm7hpg", ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// pre-fill so the error path's reset-to-nilID is actually exercised
+			// pre-fill so the error path's reset-to-ZeroID is actually exercised
 			id := ID{0xde, 0xca, 0xfb, 0xad, 0xde, 0xca, 0xfb, 0xad, 0xde, 0xca}
 			err := id.UnmarshalText([]byte(tt.encoded))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ID.UnmarshalText() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err != nil {
-				// on error, id must be reset to the nil ID
-				if id != nilID {
-					t.Errorf("ID.UnmarshalText(%s) got: %v, want nilID %v", tt.encoded, id, nilID)
+				// on error, id must be reset to the zero ID
+				if id != ZeroID {
+					t.Errorf("ID.UnmarshalText(%s) got: %v, want ZeroID %v", tt.encoded, id, ZeroID)
 				}
 				return
 			}
@@ -355,7 +359,26 @@ func TestID_UnmarshalText(t *testing.T) {
 		t.Errorf("ID.UnmarshalText(\"foo\" got: %v, want err", err)
 	}
 	if err := id.UnmarshalText([]byte("decafebad")); err != nil && !id.IsNil() {
-		t.Errorf("ID.UnmarshalText(\"foo\") got: %v, want %v", id, nilID)
+		t.Errorf("ID.UnmarshalText(\"foo\") got: %v, want %v", id, ZeroID)
+	}
+}
+
+func TestIDMarshalText(t *testing.T) {
+	id := ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}
+	b, err := id.MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText() error = %v, want nil", err)
+	}
+	if got, want := string(b), "06bprg666xzm7hpg"; got != want {
+		t.Errorf("MarshalText() = %s, want %s", got, want)
+	}
+	// nil ID
+	b, err = ZeroID.MarshalText()
+	if err != nil {
+		t.Fatalf("ZeroID.MarshalText() error = %v, want nil", err)
+	}
+	if got, want := string(b), "0000000000000000"; got != want {
+		t.Errorf("ZeroID.MarshalText() = %s, want %s", got, want)
 	}
 }
 
@@ -370,8 +393,8 @@ func TestFromBytes_Invariant(t *testing.T) {
 	}
 	// invalid
 	got, err = FromBytes([]byte{0x1, 0x2})
-	if !bytes.Equal(got[:], nilID[:]) {
-		t.Error("FromBytes([]byte{0x1, 0x2}) - invalid - != nilID")
+	if !bytes.Equal(got[:], ZeroID[:]) {
+		t.Error("FromBytes([]byte{0x1, 0x2}) - invalid - != ZeroID")
 	}
 	if err == nil {
 		t.Fatal(err)
@@ -389,7 +412,7 @@ func TestIDMarshalJSON(t *testing.T) {
 	if err != nil {
 		t.Error("id.MarshalJSON()", err)
 	}
-	if id == nilID && !reflect.DeepEqual(string(got), "null") {
+	if id == ZeroID && !reflect.DeepEqual(string(got), "null") {
 		t.Errorf("got: %v, want: \"null\"", string(got))
 	}
 	// 06bprg666xzm7hpg ts:1741277677111 seq:32579 rnd:49871 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
@@ -406,8 +429,8 @@ func TestIDMarshalJSON(t *testing.T) {
 
 func TestIDUnmarshalJSON(t *testing.T) {
 	id := ID{}
-	if err := id.UnmarshalJSON([]byte("null")); err != nil || id != nilID {
-		t.Errorf("id.UnmarshalJSON(\"null\") returns %v, %v, want nilID, nil", id, err)
+	if err := id.UnmarshalJSON([]byte("null")); err != nil || id != ZeroID {
+		t.Errorf("id.UnmarshalJSON(\"null\") returns %v, %v, want ZeroID, nil", id, err)
 	}
 	// 06bprg666xzm7hpg ts:1741277677111 seq:32579 rnd:49871 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
 	data := []byte(`{"ID":"06bprg666xzm7hpg","Str":"valid"}`)
@@ -424,8 +447,8 @@ func TestIDUnmarshalJSON(t *testing.T) {
 
 func TestIDUnmarshalJSON_Error(t *testing.T) {
 	v := jsonType{}
-	// callers are responsible for forcing lower case input for Base32
-	// otherwise valid id:
+	// decoding is case-sensitive: an uppercase spelling of an otherwise
+	// valid id is rejected:
 	err := json.Unmarshal([]byte(`{"ID":"06BPRG666XZM7HPG"}`), &v)
 	if err != ErrInvalidID {
 		t.Errorf("json.Unmarshal() err=%v, want %v", err, ErrInvalidID)
@@ -457,9 +480,20 @@ func TestIDDriverValue(t *testing.T) {
 	if want := "06bprg666xzm7hpg"; got != want {
 		t.Errorf("Value() = %v, want %v", got, want)
 	}
-	got, err = nilID.Value()
+	got, err = ZeroID.Value()
 	if got != nil && err != nil {
-		t.Errorf("nilID.Value() should return nil, nil, got: %v, %v", got, err)
+		t.Errorf("ZeroID.Value() should return nil, nil, got: %v, %v", got, err)
+	}
+	got, err = id.ValueBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got.([]byte), id[:]) {
+		t.Errorf("ValueBinary() = %v, want %v", got, id[:])
+	}
+	got, err = ZeroID.ValueBinary()
+	if got != nil || err != nil {
+		t.Errorf("ZeroID.ValueBinary() should return nil, nil, got: %v, %v", got, err)
 	}
 }
 
@@ -476,8 +510,8 @@ func TestIDDriverScan(t *testing.T) {
 	}
 	id = ID{}
 	err = id.Scan(nil)
-	if err != nil || id != nilID {
-		t.Errorf("nilID.Scan(\"\") should return nil err, nilID. got: %v %v", err, id)
+	if err != nil || id != ZeroID {
+		t.Errorf("ZeroID.Scan(\"\") should return nil err, ZeroID. got: %v %v", err, id)
 	}
 }
 
@@ -490,8 +524,8 @@ func TestIDDriverScanError(t *testing.T) {
 	if got, want := id.Scan("0"), ErrInvalidID; got != want {
 		t.Errorf("Scan() err=%v, want %v", got, want)
 	}
-	if id != nilID {
-		t.Errorf("Scan() id=%v, want %v", id, nilID)
+	if id != ZeroID {
+		t.Errorf("Scan() id=%v, want %v", id, ZeroID)
 	}
 }
 
@@ -537,8 +571,8 @@ func TestIDUnmarshalJSON_RejectsNonString(t *testing.T) {
 	if err := id.UnmarshalJSON([]byte(`123456789012345678`)); err != ErrInvalidID {
 		t.Errorf("UnmarshalJSON(number) err=%v, want %v", err, ErrInvalidID)
 	}
-	if id != nilID {
-		t.Errorf("UnmarshalJSON(number) id=%v, want nilID", id)
+	if id != ZeroID {
+		t.Errorf("UnmarshalJSON(number) id=%v, want ZeroID", id)
 	}
 	// mismatched/absent quotes of the right total length must also fail
 	for _, b := range []string{
@@ -621,47 +655,39 @@ var (
 // Create new ID
 func BenchmarkNew(b *testing.B) {
 	var r ID
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			r = New()
-		}
-		benchResultID = r
-	})
+	for b.Loop() {
+		r = New()
+	}
+	benchResultID = r
 }
 
 // common use case, generate an ID, encode as a string:
 func BenchmarkNewString(b *testing.B) {
 	var r string
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			r = New().String()
-		}
-		benchResultString = r
-	})
+	for b.Loop() {
+		r = New().String()
+	}
+	benchResultString = r
 }
 
 // encoding performance only
 func BenchmarkString(b *testing.B) {
 	id := New()
 	var r string
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			r = id.String()
-		}
-		benchResultString = r
-	})
+	for b.Loop() {
+		r = id.String()
+	}
+	benchResultString = r
 }
 
 // decoding performance only
 func BenchmarkFromString(b *testing.B) {
 	var r ID
 	str := "06bprlcm7q4z16vh"
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			r, _ = FromString(str)
-		}
-		benchResultID = r
-	})
+	for b.Loop() {
+		r, _ = FromString(str)
+	}
+	benchResultID = r
 }
 
 // examples

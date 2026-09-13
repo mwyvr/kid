@@ -1,6 +1,5 @@
 module github.com/mwyvr/kid
 
-go 1.23.0
-
-// Package kid has no dependencies outside of the Go standard library.
-// If running anything under eval/* run `go mod tidy` to pull in dependencies.
+// The 1.24 floor is deliberate: committed benchmarks use testing.B.Loop.
+// kid has no dependencies outside the Go standard library.
+go 1.24
