@@ -2,6 +2,8 @@
 coverage.out
 results.bin
 memory
-kid
-compare
-uniqcheck
+/kid
+/compare
+/uniqcheck
+eval/compare/compare
+eval/uniqcheck/uniqcheck
