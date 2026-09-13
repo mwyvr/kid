@@ -25,9 +25,6 @@
   deliberate `math/rand/v2` choice).
 - `eval/*` submodules now carry tracked `go.mod`/`go.sum`; `.gitignore`
   covers build artifacts.
-- Trim doc comments in `kid.go` and `cmd/kid`; README updated to match.
-
-Thanks to @sergeevabc for the heads up on the minimum supported Go version.
 
 ## v1.3.1
 
