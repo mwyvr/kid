@@ -1,12 +1,8 @@
 on:
   push:
     branches: '**'
-    paths-ignore:
-      - 'eval/**'
   pull_request:
     branches: '**'
-    paths-ignore:
-      - 'eval/**'
 
 name: Test
 jobs:
@@ -33,3 +29,21 @@ jobs:
     - uses: golangci/golangci-lint-action@v9
       with:
         version: v2.13.2
+  # The eval tools are separate modules with third-party deps and no tests
+  # of their own; gate them on build + vet only.
+  eval:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [eval/bench, eval/compare, eval/uniqcheck]
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions/setup-go@v5
+      with:
+        go-version: stable
+    - name: Build and vet
+      working-directory: ${{ matrix.module }}
+      run: |
+        go build ./...
+        go vet ./...

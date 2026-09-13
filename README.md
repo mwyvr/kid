@@ -15,6 +15,10 @@ IDs encode (base32) as 16-byte url-friendly strings that look like:
 
     06bqj05bhh2lcbdb
 
+Decoding is case-sensitive: only the lowercase alphabet is accepted, and
+uppercase or mixed-case input returns `ErrInvalidID`. Lowercasing such input
+before decoding is the caller's responsibility.
+
 ## kid.ID features
 
 - Size: 10 bytes as binary, 16 bytes if stored/transported as an encoded string.
