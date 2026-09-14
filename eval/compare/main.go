@@ -8,16 +8,17 @@ import (
 	"encoding/binary"
 	"fmt"
 	"time"
+	"uuid"
 
-	idgen "github.com/devjefster/GoShortUniqueID/idgen"
 	"github.com/chilts/sid"
+	idgen "github.com/devjefster/GoShortUniqueID/idgen"
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/mwyvr/kid"
 	"github.com/oklog/ulid"
 	"github.com/rs/xid"
 	"github.com/segmentio/ksuid"
 	"github.com/sony/sonyflake"
-	"uuid"
+
+	"github.com/mwyvr/kid"
 )
 
 type pkg struct {
