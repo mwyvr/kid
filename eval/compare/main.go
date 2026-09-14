@@ -18,7 +18,7 @@ import (
 	"github.com/segmentio/ksuid"
 	"github.com/sony/sonyflake"
 
-	"github.com/mwyvr/kid"
+	"github.com/mwyvr/kid/v2"
 )
 
 type pkg struct {
@@ -46,7 +46,7 @@ func main() {
 			kid.New().String(),
 			kid.New().String(),
 			"unique (ts(ms) + sequence) + math/rand/v2",
-			"6 byte ts(millisecond) : 2 byte sequence : 2 byte random",
+			"6 byte ts(millisecond) : 12 bit sequence : 20 bit random (shared 4 bytes)",
 		},
 		{
 			"[rs/xid](https://github.com/rs/xid)",

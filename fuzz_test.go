@@ -5,25 +5,27 @@ import (
 	"testing"
 )
 
-// FuzzFromString verifies that any input either fails cleanly (returning the
+// FuzzParse verifies that any input either fails cleanly (returning the
 // nil ID) or roundtrips exactly through String().
-func FuzzFromString(f *testing.F) {
+func FuzzParse(f *testing.F) {
 	f.Add("06bqer9xnm79tfnl")
 	f.Add("0000000000000000")
 	f.Add("zzzzzzzzzzzzzzzz")
-	f.Add("06BQER9XNR09HYQ5") // uppercase: invalid
-	f.Add("o6bqer9xnr09hyq5") // 'o' not in alphabet
-	f.Add("06bqer9")          // short
+	f.Add("06BQER9XNR09HYQ5")        // uppercase: invalid
+	f.Add("o6bqer9xnr09hyq5")        // 'o' not in alphabet
+	f.Add("06bqer9")                 // short
+	f.Add("06bqer9xnm79tfnl0")       // long
+	f.Add("06bqer9xnm79tfn\xc3\xa9") // non-ASCII in place of the last char
 	f.Fuzz(func(t *testing.T, s string) {
-		id, err := FromString(s)
+		id, err := Parse(s)
 		if err != nil {
 			if id != ZeroID {
-				t.Fatalf("FromString(%q) errored but returned non-nil ID %v", s, id)
+				t.Fatalf("Parse(%q) errored but returned non-nil ID %v", s, id)
 			}
 			return
 		}
 		if got := id.String(); got != s {
-			t.Fatalf("roundtrip mismatch: FromString(%q).String() = %q", s, got)
+			t.Fatalf("roundtrip mismatch: Parse(%q).String() = %q", s, got)
 		}
 	})
 }
@@ -84,7 +86,7 @@ func FuzzFromBytes(f *testing.F) {
 		if !bytes.Equal(id.Bytes(), b) {
 			t.Fatalf("Bytes() = %v, want %v", id.Bytes(), b)
 		}
-		back, err := FromString(id.String())
+		back, err := Parse(id.String())
 		if err != nil || back != id {
 			t.Fatalf("string roundtrip failed: %v -> %s -> %v (%v)", id, id.String(), back, err)
 		}

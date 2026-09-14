@@ -1,9 +1,10 @@
 /*
 Package kid generates short, URL-safe, k-sortable unique IDs.
 
-An ID is 10 bytes: 6 bytes of Unix time in milliseconds, 2 bytes of
-sequence, and 2 random bytes (math/rand/v2, seeded by the runtime from OS
-entropy). Base32-encoded with a lowercase alphabet that omits a, i, o, and u,
+An ID is 10 bytes: a 48-bit Unix millisecond timestamp, followed by a
+32-bit field holding a 12-bit sequence and 20 bits of randomness, packed
+so the sequence remains more significant than the randomness for correct
+ordering. Base32-encoded with a lowercase alphabet that omits a, i, o, and u,
 an ID is a 16-character URL-friendly string. The alphabet is in ascending
 ASCII order, so encoded IDs sort the same as their binary form. Decoding is
 case-sensitive: uppercase input is rejected.
@@ -17,17 +18,18 @@ slows.
 
 Uniqueness is per process. Across processes there is no coordination; two
 processes that derive the same timestamp+sequence are separated only by the
-16 random bits (1 in 65,536). Use a coordinated or longer ID (xid, uuid)
+20 random bits (1 in 1,048,576). Use a coordinated or longer ID (xid, uuid)
 where cross-machine uniqueness is required.
 
 The zero value, ZeroID, is both the nil sentinel (IsZero) and a valid,
-decodable ID: FromString("0000000000000000") decodes to it. A JSON null into
+decodable ID: Parse("0000000000000000") decodes to it. A JSON null into
 a *ID nils the pointer without calling UnmarshalJSON.
 
-ID implements TextMarshaler/TextUnmarshaler, json.Marshaler/json.Unmarshaler,
-and database/sql driver.Valuer and sql.Scanner.
+ID implements TextMarshaler/TextUnmarshaler, TextAppender/BinaryAppender,
+BinaryMarshaler/BinaryUnmarshaler, json.Marshaler/json.Unmarshaler, and
+database/sql driver.Valuer and sql.Scanner.
 
-Security note: an ID carries only 16 bits of randomness alongside values
+Security note: an ID carries only 20 bits of randomness alongside values
 derived from the clock; IDs are predictable by design. Do not use them where
 unguessability matters, such as session tokens, API keys, or password reset
 codes.
@@ -39,7 +41,7 @@ Example usage:
 		fmt.Printf("%s %03v\n", id, id[:])
 		// Example output: 06bq7xhnr03mlz6r [001 149 115 246 021 192 007 073 252 216]
 
-		id, err := kid.FromString("06bq7xhnr03mlz6r")
+		id, err := kid.Parse("06bq7xhnr03mlz6r")
 		if err != nil {
 			// handle the error
 		}
@@ -49,9 +51,14 @@ Example usage:
 
 Acknowledgments:
 
-The API borrows from github.com/rs/xid, and the timestamp+sequence encoding
-derives from google/uuid's getV7Time() algorithm, with its mutex replaced by
-a lock-free atomic claim. Third-party license texts are in NOTICES.
+The API borrows from github.com/rs/xid, and the ts+seq lock-free claim in
+getTS derives from google/uuid's getV7Time() algorithm, with its mutex
+replaced by a lock-free atomic claim. The sequence/randomness packing within
+the ID's trailing 4 bytes is kid's own: v1 ported getV7Time()'s bit widths
+directly, which left 4 bits of every generated ID always zero (a constraint
+inherited from UUIDv7's version nibble, which kid's own layout has no need
+of); v2 reclaims them as randomness instead. Third-party license texts are
+in NOTICES.
 */
 package kid
 
@@ -102,8 +109,9 @@ func init() {
 	}
 }
 
-// New generates a new unique ID: 6 bytes of Unix time in milliseconds,
-// 2 bytes of sequence, and 2 random bytes from math/rand/v2.
+// New generates a new unique ID: a 6-byte Unix millisecond timestamp
+// followed by a 12-bit sequence and 20 bits of randomness from
+// math/rand/v2.
 //
 // New is goroutine-safe and lock-free: the timestamp+sequence is claimed
 // with a single compare-and-swap, falling back to a wait-free atomic
@@ -132,8 +140,22 @@ func NewWithTime(t time.Time) (id ID, err error) {
 	return buildID(uint64(milli), uint64(sub>>8)), nil
 }
 
-// buildID lays out milli (48 bits), seq (12 bits), and 2 random bytes.
-// Callers must keep milli and seq in range.
+// seqBits is the width of the sequence field packed into the trailing
+// 4 bytes; the remaining bits (randBits) carry randomness. seqBits must
+// stay large enough to hold getTS's full sequence range (see getTS) and
+// randMask/randBits must partition exactly the 32 bits of id[6:10].
+const (
+	seqBits  = 12
+	randBits = 32 - seqBits
+	randMask = 1<<randBits - 1 // 0xFFFFF: low 20 bits
+)
+
+// buildID lays out milli (48 bits) into the first 6 bytes, then packs seq
+// (12 bits) and 20 bits of randomness into the trailing 4 bytes as a single
+// big-endian field with seq in the high bits, so seq remains more
+// significant than the randomness for k-sortability (see the package doc's
+// Acknowledgments for why the two share a field rather than each getting a
+// clean byte range). Callers must keep milli and seq in range.
 func buildID(milli, seq uint64) (id ID) {
 	// timestamp, 6 bytes, big endian
 	id[0] = byte(milli >> 40)
@@ -142,13 +164,14 @@ func buildID(milli, seq uint64) (id ID) {
 	id[3] = byte(milli >> 16)
 	id[4] = byte(milli >> 8)
 	id[5] = byte(milli)
-	// sequence, 2 bytes, big endian
-	id[6] = byte(seq >> 8)
-	id[7] = byte(seq)
-	// 2 random bytes; IDs are predictable by design, see the package doc
-	r := mrand.Uint32()
-	id[8] = byte(r >> 8)
-	id[9] = byte(r)
+	// seq (high, more significant) | randomness (low); IDs are predictable
+	// by design, see the package doc's security note.
+	rnd := mrand.Uint32() & randMask
+	combined := uint32(seq)<<randBits | rnd
+	id[6] = byte(combined >> 24)
+	id[7] = byte(combined >> 16)
+	id[8] = byte(combined >> 8)
+	id[9] = byte(combined)
 	return id
 }
 
@@ -188,6 +211,14 @@ func (id ID) MarshalText() ([]byte, error) {
 	return text, nil
 }
 
+// AppendText appends the 16-byte base32 encoding of id to b and returns
+// the extended slice. Every ID encodes, so error is always nil.
+func (id ID) AppendText(b []byte) ([]byte, error) {
+	var buf [encodedLen]byte
+	encode(buf[:], id[:])
+	return append(b, buf[:]...), nil
+}
+
 // encode writes the 16-byte base32 encoding of id to dst, unrolling the
 // stdlib algorithm without bounds checks. Base32 of 10 bytes needs no
 // padding: 8 encoded bytes per 5 input bytes.
@@ -223,9 +254,35 @@ func FromBytes(b []byte) (ID, error) {
 	return id, nil
 }
 
-// FromString decodes a 16-character base32-encoded string to return an ID.
+// MarshalBinary returns a copy of the 10-byte binary form of id. This is a
+// plain copy, not an encoding step, so error is always nil.
+func (id ID) MarshalBinary() ([]byte, error) {
+	return id.Bytes(), nil
+}
+
+// AppendBinary appends the 10-byte binary form of id to b and returns the
+// extended slice. This is a plain append, not an encoding step, so error
+// is always nil.
+func (id ID) AppendBinary(b []byte) ([]byte, error) {
+	return append(b, id[:]...), nil
+}
+
+// UnmarshalBinary copies data into id. On error, id is set to ZeroID and
+// ErrInvalidID is returned. UnmarshalBinary must be able to decode the
+// form generated by MarshalBinary, so it accepts only exactly rawLen (10)
+// bytes, same as FromBytes.
+func (id *ID) UnmarshalBinary(data []byte) error {
+	if len(data) != rawLen {
+		*id = ZeroID
+		return ErrInvalidID
+	}
+	copy(id[:], data)
+	return nil
+}
+
+// Parse decodes a 16-character base32-encoded string to return an ID.
 // Decoding is case-sensitive: uppercase input is rejected with ErrInvalidID.
-func FromString(str string) (ID, error) {
+func Parse(str string) (ID, error) {
 	var id ID
 	err := id.UnmarshalText([]byte(str))
 	return id, err
@@ -357,18 +414,17 @@ func (id ID) Time() time.Time {
 	return time.UnixMilli(id.Timestamp()).UTC()
 }
 
-// Sequence returns the sequence component of id. For IDs from New this is
-// 12 bits (0-4095); overflow within a millisecond carries into the
-// timestamp (see getTS). IDs from other sources may carry any 16-bit value.
-func (id ID) Sequence() int32 {
-	b := id[6:8]
-	return int32(uint32(b[0])<<8 | uint32(b[1]))
+// Sequence returns the sequence component of id: the high seqBits (12)
+// bits of the trailing 4-byte field. For IDs from New this is 0-4095;
+// overflow within a millisecond carries into the timestamp (see getTS).
+func (id ID) Sequence() uint16 {
+	return uint16(binary.BigEndian.Uint32(id[6:10]) >> randBits)
 }
 
-// Random returns the two random bytes of id.
-func (id ID) Random() int32 {
-	b := id[8:]
-	return int32(uint32(b[0])<<8 | uint32(b[1]))
+// Random returns the randomness component of id: the low randBits (20)
+// bits of the trailing 4-byte field.
+func (id ID) Random() uint32 {
+	return binary.BigEndian.Uint32(id[6:10]) & randMask
 }
 
 // Compare reports whether id is less than, equal to, or greater than other

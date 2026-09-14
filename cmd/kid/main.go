@@ -10,7 +10,7 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/mwyvr/kid"
+	"github.com/mwyvr/kid/v2"
 )
 
 func main() {
@@ -73,14 +73,14 @@ func main() {
 func decodeIDs(vals []string) int {
 	failed := false
 	for _, arg := range vals {
-		id, err := kid.FromString(arg)
+		id, err := kid.Parse(arg)
 		if err != nil {
 			fmt.Printf("[%s] %s\n", arg, err)
 			failed = true
 			continue
 		}
 
-		fmt.Printf("%s ts:%d seq:%4d rnd:%5d %s ID{%s }\n", arg,
+		fmt.Printf("%s ts:%d seq:%4d rnd:%7d %s ID{%s }\n", arg,
 			id.Timestamp(), id.Sequence(), id.Random(), id.Time(), asHex(id.Bytes()))
 	}
 	if failed {

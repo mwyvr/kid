@@ -17,8 +17,8 @@ type test struct {
 	id      ID
 	encoded string
 	ts      int64
-	seq     int32
-	random  int32
+	seq     uint16
+	random  uint32
 	time    string
 	valid   bool
 }
@@ -35,12 +35,12 @@ var tests = []test{
 		true,
 	},
 	{
-		// zzzzzzzzzzzzzzzz ts:281474976710655 seq:65535 rnd:65535 10889-08-02 05:31:50.655 +0000 UTC ID{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }
+		// zzzzzzzzzzzzzzzz ts:281474976710655 seq:4095 rnd:1048575 10889-08-02 05:31:50.655 +0000 UTC ID{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }
 		ID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		"zzzzzzzzzzzzzzzz",
 		281474976710655,
-		65535,
-		65535,
+		4095,
+		1048575,
 		"10889-08-02 05:31:50.655 +0000 UTC",
 		true,
 	},
@@ -84,30 +84,30 @@ var tests = []test{
 		"2022-01-01 01:01:01.001 +0000 UTC",
 		true,
 	},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0x9d, 0x3a, 0xb3}, "06bqer9xnm79tfnl", 1741456227757, 3741, 15027, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xaa, 0x84, 0x0}, "06bqer9xnm7bn100", 1741456227757, 3754, 33792, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xb7, 0xd9, 0x40}, "06bqer9xnm7cgpb0", 1741456227757, 3767, 55616, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xc4, 0xdb, 0xb2}, "06bqer9xnm7d9pxk", 1741456227757, 3780, 56242, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xd1, 0xd5, 0x4e}, "06bqer9xnm7e3nbf", 1741456227757, 3793, 54606, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xe4, 0x19, 0xbb}, "06bqer9xnm7f86ev", 1741456227757, 3812, 6587, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xf2, 0xad, 0x75}, "06bqer9xnm7g5ccn", 1741456227757, 3826, 44405, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xff, 0xc0, 0xb}, "06bqer9xnm7gzh0c", 1741456227757, 3839, 49163, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xf, 0xd, 0xca, 0x3b}, "06bqer9xnm7hvkjv", 1741456227757, 3853, 51771, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xf, 0x21, 0x70, 0x79}, "06bqer9xnm7k2w3s", 1741456227757, 3873, 28793, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xf, 0x3b, 0xac, 0xdb}, "06bqer9xnm7lqc6v", 1741456227757, 3899, 44251, "2025-03-08 17:50:27.757 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x12, 0x41, 0x49}, "06bqer9xnr014hb9", 1741456227758, 18, 16713, "2025-03-08 17:50:27.758 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x20, 0x75, 0x9b}, "06bqer9xnr020xdv", 1741456227758, 32, 30107, "2025-03-08 17:50:27.758 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x2d, 0x8d, 0x95}, "06bqer9xnr02v3dn", 1741456227758, 45, 36245, "2025-03-08 17:50:27.758 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x3b, 0xd3, 0xf7}, "06bqer9xnr03qmzq", 1741456227758, 59, 54263, "2025-03-08 17:50:27.758 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x48, 0xa4, 0xef}, "06bqer9xnr04j97g", 1741456227758, 72, 42223, "2025-03-08 17:50:27.758 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x55, 0x4f, 0x4f}, "06bqer9xnr05bltg", 1741456227758, 85, 20303, "2025-03-08 17:50:27.758 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x63, 0xc6, 0x81}, "06bqer9xnr067jm1", 1741456227758, 99, 50817, "2025-03-08 17:50:27.758 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x70, 0xd9, 0x2c}, "06bqer9xnr071p9d", 1741456227758, 112, 55596, "2025-03-08 17:50:27.758 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x7d, 0x5d, 0xac}, "06bqer9xnr07tqed", 1741456227758, 125, 23980, "2025-03-08 17:50:27.758 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x8b, 0x13, 0xb}, "06bqer9xnr08p4rc", 1741456227758, 139, 4875, "2025-03-08 17:50:27.758 +0000 UTC", true},
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x98, 0x7a, 0xe5}, "06bqer9xnr09hyq5", 1741456227758, 152, 31461, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0x9d, 0x3a, 0xb3}, "06bqer9xnm79tfnl", 1741456227757, 233, 866995, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xaa, 0x84, 0x0}, "06bqer9xnm7bn100", 1741456227757, 234, 689152, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xb7, 0xd9, 0x40}, "06bqer9xnm7cgpb0", 1741456227757, 235, 514368, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xc4, 0xdb, 0xb2}, "06bqer9xnm7d9pxk", 1741456227757, 236, 318386, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xd1, 0xd5, 0x4e}, "06bqer9xnm7e3nbf", 1741456227757, 237, 120142, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xe4, 0x19, 0xbb}, "06bqer9xnm7f86ev", 1741456227757, 238, 268731, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xf2, 0xad, 0x75}, "06bqer9xnm7g5ccn", 1741456227757, 239, 175477, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xe, 0xff, 0xc0, 0xb}, "06bqer9xnm7gzh0c", 1741456227757, 239, 1032203, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xf, 0xd, 0xca, 0x3b}, "06bqer9xnm7hvkjv", 1741456227757, 240, 903739, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xf, 0x21, 0x70, 0x79}, "06bqer9xnm7k2w3s", 1741456227757, 242, 94329, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xad, 0xf, 0x3b, 0xac, 0xdb}, "06bqer9xnm7lqc6v", 1741456227757, 243, 765147, "2025-03-08 17:50:27.757 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x12, 0x41, 0x49}, "06bqer9xnr014hb9", 1741456227758, 1, 147785, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x20, 0x75, 0x9b}, "06bqer9xnr020xdv", 1741456227758, 2, 30107, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x2d, 0x8d, 0x95}, "06bqer9xnr02v3dn", 1741456227758, 2, 888213, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x3b, 0xd3, 0xf7}, "06bqer9xnr03qmzq", 1741456227758, 3, 775159, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x48, 0xa4, 0xef}, "06bqer9xnr04j97g", 1741456227758, 4, 566511, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x55, 0x4f, 0x4f}, "06bqer9xnr05bltg", 1741456227758, 5, 347983, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x63, 0xc6, 0x81}, "06bqer9xnr067jm1", 1741456227758, 6, 247425, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x70, 0xd9, 0x2c}, "06bqer9xnr071p9d", 1741456227758, 7, 55596, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x7d, 0x5d, 0xac}, "06bqer9xnr07tqed", 1741456227758, 7, 875948, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x8b, 0x13, 0xb}, "06bqer9xnr08p4rc", 1741456227758, 8, 725771, "2025-03-08 17:50:27.758 +0000 UTC", true},
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x98, 0x7a, 0xe5}, "06bqer9xnr09hyq5", 1741456227758, 9, 555749, "2025-03-08 17:50:27.758 +0000 UTC", true},
 	// invalid encoded values
-	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x98, 0x7a, 0xe5}, "06BQER9XNR09HYQ5", 1741456227758, 152, 31461, "2025-03-08 17:50:27.758 +0000 UTC", false}, // must be lowercase
+	{ID{0x1, 0x95, 0x76, 0xe1, 0x3d, 0xae, 0x0, 0x98, 0x7a, 0xe5}, "06BQER9XNR09HYQ5", 1741456227758, 9, 555749, "2025-03-08 17:50:27.758 +0000 UTC", false}, // must be lowercase
 	{ID{}, "o6bqer9xnr09hyq5", 0, 0, 0, "", false}, // "o" is not a valid character in encoding
 	{ID{}, "06bqer9", 0, 0, 0, "", false},          // invalid length
 }
@@ -132,14 +132,14 @@ func TestNewWithTime(t *testing.T) {
 	if got, want := id.Timestamp(), tm.UnixMilli(); got != want {
 		t.Errorf("Timestamp = %d, want %d", got, want)
 	}
-	if got, want := id.Sequence(), int32(int64(tm.Nanosecond())%nanoPerMilli>>8); got != want {
+	if got, want := id.Sequence(), uint16(int64(tm.Nanosecond())%nanoPerMilli>>8); got != want {
 		t.Errorf("Sequence = %d, want %d", got, want)
 	}
 	if got := id.Time().UTC(); !got.Equal(tm.Truncate(time.Millisecond)) {
 		t.Errorf("Time = %v, want %v", got, tm.Truncate(time.Millisecond))
 	}
 	// Round trip through the encoded form.
-	if back, err := FromString(id.String()); err != nil || back != id {
+	if back, err := Parse(id.String()); err != nil || back != id {
 		t.Errorf("round trip: %v, %v", back, err)
 	}
 	// IDs preserve time order.
@@ -229,12 +229,12 @@ func TestInvalid(t *testing.T) {
 			continue
 		}
 		t.Run(fmt.Sprintf("Test%d", i), func(t *testing.T) {
-			id, err := FromString(v.encoded)
+			id, err := Parse(v.encoded)
 			if err == nil {
-				t.Errorf("invalid encoded %v, FromString() should be err", v.encoded)
+				t.Errorf("invalid encoded %v, Parse() should be err", v.encoded)
 			}
 			if id != ZeroID {
-				t.Errorf("invalid encoded %v returned %v, FromString() should return ZeroID", v.encoded, v.id[:])
+				t.Errorf("invalid encoded %v returned %v, Parse() should return ZeroID", v.encoded, v.id[:])
 			}
 		})
 	}
@@ -262,7 +262,7 @@ func TestIDComponents(t *testing.T) {
 func TestSequence(t *testing.T) {
 	var (
 		lastTS  int64
-		lastSeq int32
+		lastSeq uint16
 	)
 	// Generate 1,000,000 new IDs
 	check := []ID{}
@@ -313,47 +313,47 @@ func TestIDEncode(t *testing.T) {
 	}
 }
 
-func TestFromString(t *testing.T) {
-	// 06bprdfln4x281hd ts:1741276959657 seq:14884 rnd: 1548 2025-03-06 16:02:39.657 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x31, 0xd3, 0xa9, 0x3a, 0x24,  0x6,  0xc }
-	got, err := FromString("06bprdfln4x281hd")
+func TestParse(t *testing.T) {
+	// 06bprdfln4x281hd ts:1741276959657 seq:930 rnd:263692 2025-03-06 16:02:39.657 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x31, 0xd3, 0xa9, 0x3a, 0x24,  0x6,  0xc }
+	got, err := Parse("06bprdfln4x281hd")
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := ID{0x1, 0x95, 0x6c, 0x31, 0xd3, 0xa9, 0x3a, 0x24, 0x6, 0xc}
 	if got != want {
-		t.Errorf("FromString() = %v, want %v", got, want)
+		t.Errorf("Parse() = %v, want %v", got, want)
 	}
 	// nil ID
-	got, err = FromString("0000000000000000")
+	got, err = Parse("0000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
 	want = ID{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
 	if got != want {
-		t.Errorf("FromString() = %v, want %v", got, want)
+		t.Errorf("Parse() = %v, want %v", got, want)
 	}
 	// max ID
-	got, err = FromString("zzzzzzzzzzzzzzzz")
+	got, err = Parse("zzzzzzzzzzzzzzzz")
 	if err != nil {
 		t.Fatal(err)
 	}
 	want = ID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 	if got != want {
-		t.Errorf("FromString() = %v, want %v", got, want)
+		t.Errorf("Parse() = %v, want %v", got, want)
 	}
 }
 
-func TestFromStringInvalid(t *testing.T) {
-	_, err := FromString("012345")
+func TestParseInvalid(t *testing.T) {
+	_, err := Parse("012345")
 	if err != ErrInvalidID {
-		t.Errorf("FromString(invalid length) err=%v, want %v", err, ErrInvalidID)
+		t.Errorf("Parse(invalid length) err=%v, want %v", err, ErrInvalidID)
 	}
-	id, err := FromString("062ez870acdtzd2y3qajilou") // i, l, o, u never in our IDs
+	id, err := Parse("062ez870acdtzd2y3qajilou") // i, l, o, u never in our IDs
 	if err != ErrInvalidID {
-		t.Errorf("FromString(062ez870acdtzd2y3qajilou - invalid chars) err=%v, want %v", err, ErrInvalidID)
+		t.Errorf("Parse(062ez870acdtzd2y3qajilou - invalid chars) err=%v, want %v", err, ErrInvalidID)
 	}
 	if id != ZeroID {
-		t.Errorf("FromString() =%v, there want %v", id, ZeroID)
+		t.Errorf("Parse() =%v, there want %v", id, ZeroID)
 	}
 }
 
@@ -727,11 +727,11 @@ func BenchmarkString(b *testing.B) {
 }
 
 // decoding performance only
-func BenchmarkFromString(b *testing.B) {
+func BenchmarkParse(b *testing.B) {
 	var r ID
 	str := "06bprlcm7q4z16vh"
 	for b.Loop() {
-		r, _ = FromString(str)
+		r, _ = Parse(str)
 	}
 	benchResultID = r
 }
@@ -760,8 +760,8 @@ func ExampleNew() {
 `, id.String(), id.Timestamp(), id.Sequence(), id.Random(), id.Time().UTC(), id.Bytes())
 }
 
-func ExampleFromString() {
-	id, err := FromString("03f6nlxczw0018fz")
+func ExampleParse() {
+	id, err := Parse("03f6nlxczw0018fz")
 	if err != nil {
 		panic(err)
 	}

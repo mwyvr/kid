@@ -38,7 +38,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/mwyvr/kid"
+	"github.com/mwyvr/kid/v2"
 )
 
 func main() {

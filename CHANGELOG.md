@@ -1,5 +1,44 @@
 # Change Log
 
+## v2.0.0
+
+Module path is now `github.com/mwyvr/kid/v2`; update imports accordingly.
+
+### Breaking
+
+- **ID layout**: the trailing 4 bytes (previously a clean 2-byte sequence
+  + 2-byte random split) are now a single big-endian 32-bit field: a
+  12-bit sequence in the high bits, followed by 20 bits of randomness in
+  the low bits, with the sequence kept more significant so k-sortability
+  is unaffected. v1's 2-byte sequence field only ever used its low 12
+  bits — a constraint inherited from porting google/uuid's getV7Time(),
+  where those 4 spare bits are forced by UUIDv7's version nibble, a
+  constraint that never applied to kid's own layout. v2 reclaims them as
+  randomness, raising the cross-process collision-avoidance figure from
+  16 random bits (1 in 65,536) to 20 (1 in 1,048,576).
+
+  IDs generated under v1 remain completely valid under v2 — they still
+  decode, compare, sort, and round-trip correctly, since those operations
+  treat the 10 bytes as opaque. Only `Sequence()`/`Random()` introspection
+  is affected: calling either on a *pre-v2* ID under v2 code will not
+  recover the original v1 sequence/random split, since the bit boundaries
+  moved. Identity, ordering, and storage are unaffected either way.
+- `Sequence()` now returns `uint16` (was `int32`); `Random()` now returns
+  `uint32` (was `int32`, and needed widening regardless since 20 bits no
+  longer fits `uint16`).
+- `FromString` renamed to `Parse`, aligning with `time.Parse`/`uuid.Parse`
+  convention; no alias retained.
+
+### Added
+
+- `MarshalBinary`/`UnmarshalBinary` (`encoding.BinaryMarshaler`/
+  `BinaryUnmarshaler`), so `gob` and anything else that dispatches on
+  that interface pair can use `ID` directly.
+- `AppendText`/`AppendBinary` (`encoding.TextAppender`/`BinaryAppender`,
+  new in Go 1.24): append the encoded/binary form to an existing buffer
+  without an intermediate allocation.
+- Two more fuzz seeds for `FuzzParse` (long input, non-ASCII).
+
 ## v1.4.1
 
 - Fix inaccurate doc comments incorrectly identifying the overflow year

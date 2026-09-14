@@ -6,7 +6,7 @@ import (
 	"time"
 
 	idgen "github.com/devjefster/GoShortUniqueID/idgen"
-	"github.com/mwyvr/kid"
+	"github.com/mwyvr/kid/v2"
 	"github.com/oklog/ulid"
 	"github.com/rs/xid"
 	"github.com/segmentio/ksuid"

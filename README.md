@@ -1,4 +1,4 @@
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/mwyvr/kid) [![godoc](http://img.shields.io/badge/godev-reference-blue.svg?style=flat)](https://pkg.go.dev/github.com/mwyvr/kid?tab=doc) [![Test](https://github.com/mwyvr/kid/actions/workflows/test.yaml/badge.svg)](https://github.com/mwyvr/kid/actions/workflows/test.yaml) [![codecov](https://codecov.io/gh/mwyvr/kid/branch/main/graph/badge.svg)](https://codecov.io/gh/mwyvr/kid) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/mwyvr/kid) [![godoc](http://img.shields.io/badge/godev-reference-blue.svg?style=flat)](https://pkg.go.dev/github.com/mwyvr/kid/v2?tab=doc) [![Test](https://github.com/mwyvr/kid/actions/workflows/test.yaml/badge.svg)](https://github.com/mwyvr/kid/actions/workflows/test.yaml) [![codecov](https://codecov.io/gh/mwyvr/kid/branch/main/graph/badge.svg)](https://codecov.io/gh/mwyvr/kid) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # kid
 
@@ -9,13 +9,30 @@ of short (10 byte binary, 16 bytes when base32 encoded), url-safe,
 The 10-byte binary representation of an ID is composed of:
 
 - 6-byte value representing Unix time in milliseconds
-- 2-byte sequence, and,
-- 2-byte random value.
+- 12-bit sequence, and,
+- 20 bits of randomness, with k-sortability preserved
+
+```
+byte:    0    1    2    3    4    5    6    7    8    9
+      +----+----+----+----+----+----+----+----+----+----+
+      |        unix_ts_ms (48 bits)      |  seq + rnd   |
+      +----+----+----+----+----+----+----+----+----+----+
+                                         \____________/
+                                               |
+        bytes 6-9, one 32-bit big-endian field-+
+
+ bit: 31                  20 19                         0
+      +---------------------+---------------------------+
+      |   sequence (12)     |      randomness (20)      |
+      +---------------------+---------------------------+
+        higher bits: sorts first within a millisecond, so
+        randomness never disturbs k-sortability
+```
 
 Using a custom base32 encoding, IDs encode as 16-byte url-friendly strings that
 look like:
 
-    06bqj05bhh2lcbdb
+    06hb4fpsz04dpx4p
 
 Decoding is case-sensitive: only the lowercase alphabet is accepted, and
 uppercase or mixed-case input returns `ErrInvalidID`. Lowercasing such input
@@ -29,7 +46,7 @@ kid has no dependencies outside the standard library, and requires Go 1.24+
 - Size: 10 bytes as binary, 16 bytes if stored/transported as an encoded string.
 - Timestamp + sequence is guaranteed to be unique and monotonically increasing
   for each call to New(), even if the wall clock steps backwards.
-- 2 bytes of trailing randomness to avoid counter-based attacks, drawn
+- 20 bits of trailing randomness to avoid counter-based attacks, drawn
   from math/rand/v2 (seeded by the Go runtime from OS entropy).
 - K-orderable in both binary and base32 encoded representations; the encoding
   alphabet is in ascending ASCII order, so encoded strings sort identically to
@@ -37,10 +54,11 @@ kid has no dependencies outside the standard library, and requires Go 1.24+
 - Lock-free, allocation-free ID generation that scales with cores; there is no
   mutex in the New() path.
 - URL-friendly custom encoding without the vowels a, i, o, and u.
-- Automatic (un)/marshalling for SQL and JSON.
+- Automatic (un)/marshalling for SQL, JSON, text, and binary
+  (TextAppender/BinaryAppender, encoding.BinaryMarshaler/BinaryUnmarshaler).
 - cmd/kid tool for ID generation and introspection.
 
-**Security note**: an ID carries only 16 bits of randomness alongside values
+**Security note**: an ID carries only 20 bits of randomness alongside values
 derived from the clock; IDs are predictable by design. Do not use kid IDs
 where unguessability matters, such as session tokens, API keys, or password
 reset codes.
@@ -53,7 +71,7 @@ func main() {
 	fmt.Printf("%s %03v\n", id, id[:])
 	// Example output: 06bq7xhnr03mlz6r [001 149 115 246 021 192 007 073 252 216]
 
-	id, err := kid.FromString("06bq7xhnr03mlz6r")
+	id, err := kid.Parse("06bq7xhnr03mlz6r")
 	if err != nil {
 		// handle the error
 	}
@@ -68,10 +86,14 @@ func main() {
   borrows heavily from [github.com/rs/xid](https://github.com/rs/xid), a
   zero-configuration globally-unique ID generator.
 
-- The timestamp+sequence encoding is derived from the
+- The lock-free ts+seq claim in getTS is derived from the
   [github.com/google/uuid](https://github.com/google/uuid/blob/master/version7.go#L88)
-  getV7Time() algorithm; kid replaces its mutex protection with a lock-free
-  atomic claim.
+  getV7Time() algorithm, with its mutex replaced by a lock-free atomic claim.
+  The sequence/randomness packing within the ID's trailing 4 bytes is kid's
+  own as of v2: v1 ported getV7Time()'s bit widths directly, which left 4
+  bits of every generated ID always zero — a constraint inherited from
+  UUIDv7's version nibble, which kid's own layout has no need of. v2 reclaims
+  those bits as randomness instead.
 
 Third-party copyright notices and license texts are reproduced in
 [NOTICES](NOTICES).
@@ -95,7 +117,7 @@ strictly increasing IDs:
 
 Or, at the command line, produce IDs and use OS utilities to check (single-threaded):
 
-    $ go install github.com/mwyvr/kid/cmd/kid@latest
+    $ go install github.com/mwyvr/kid/v2/cmd/kid@latest
     $ kid -c 2000000 | sort | uniq -d
     // None output
 
@@ -108,9 +130,9 @@ structural, not probabilistic, and does not depend on the random bytes.
 Across processes or machines there is no coordination (kid deliberately
 omits xid's machine ID and PID bytes in exchange for shortness): two
 processes that derive the same timestamp+sequence in the same ~256ns window
-are separated only by the two random bytes, a 1-in-65,536 chance per such
-coincidence. If you need cross-machine uniqueness at high sustained rates,
-use a coordinated or longer ID (xid, uuid).
+are separated only by the 20 bits of randomness, a 1-in-1,048,576 chance per
+such coincidence. If you need cross-machine uniqueness at high sustained
+rates, use a coordinated or longer ID (xid, uuid).
 
 ### Capacity and timestamp drift
 
@@ -141,7 +163,7 @@ ts+seq uniqueness across goroutines):
 
 Fuzzing hammers the decode paths:
 
-    go test -fuzz '^FuzzFromString$'    -fuzztime 60s .
+    go test -fuzz '^FuzzParse$'         -fuzztime 60s .
     go test -fuzz '^FuzzUnmarshalJSON$' -fuzztime 60s .
     go test -fuzz '^FuzzFromBytes$'     -fuzztime 60s .
 
@@ -161,22 +183,18 @@ Package `kid` also provides a tool for id generation and inspection:
 
 ```bash
 $ kid
-06bpwm8x107evvh9
+06hb42zvde2y9csj
 
 $ kid -c 2
-06bpwm3hkm371gz4
-06bpwm3hkm3d5ezr
+06hb42zvdkce6e6y
+06hb42zvdktcjhwm
 
 # produce 4 and inspect
-kid $(kid -c 4)
-06bpwlvhb86bypp7 ts:1741312454738 seq:3247 rnd:23239 2025-03-07 01:54:14.738 +0000 UTC ID{  0x1, 0x95, 0x6e, 0x4f, 0x70, 0x52,  0xc, 0xaf, 0x5a, 0xc7 }
-06bpwlvhb86gcdw6 ts:1741312454738 seq:3317 rnd:45958 2025-03-07 01:54:14.738 +0000 UTC ID{  0x1, 0x95, 0x6e, 0x4f, 0x70, 0x52,  0xc, 0xf5, 0xb3, 0x86 }
-06bpwlvhb86gkmks ts:1741312454738 seq:3320 rnd:53817 2025-03-07 01:54:14.738 +0000 UTC ID{  0x1, 0x95, 0x6e, 0x4f, 0x70, 0x52,  0xc, 0xf8, 0xd2, 0x39 }
-06bpwlvhb86gmb73 ts:1741312454738 seq:3322 rnd:10467 2025-03-07 01:54:14.738 +0000 UTC ID{  0x1, 0x95, 0x6e, 0x4f, 0x70, 0x52,  0xc, 0xfa, 0x28, 0xe3 }
-
-# decode and inspect from stdin
-echo 06bpwlvhb86bypp7 | kid
-06bpwlvhb86bypp7 ts:1741312454738 seq:3247 rnd:23239 2025-03-07 01:54:14.738 +0000 UTC ID{  0x1, 0x95, 0x6e, 0x4f, 0x70, 0x52,  0xc, 0xaf, 0x5a, 0xc7 }
+$ kid -c 4 | kid
+06hb4gyt7yv261k6 ts:1789428488767 seq:2914 rnd: 198214 2026-09-14 23:28:08.767 +0000 UTC ID{  0x1, 0xa0, 0xa2, 0x3f, 0xda, 0x3f, 0xb6, 0x23,  0x6, 0x46 }
+06hb4gyt7yw1w9b7 ts:1789428488767 seq:2945 rnd: 927047 2026-09-14 23:28:08.767 +0000 UTC ID{  0x1, 0xa0, 0xa2, 0x3f, 0xda, 0x3f, 0xb8, 0x1e, 0x25, 0x47 }
+06hb4gyt7yw5qprh ts:1789428488767 seq:2949 rnd: 776976 2026-09-14 23:28:08.767 +0000 UTC ID{  0x1, 0xa0, 0xa2, 0x3f, 0xda, 0x3f, 0xb8, 0x5b, 0xdb, 0x10 }
+06hb4gyt7yw6ynvm ts:1789428488767 seq:2950 rnd:1005428 2026-09-14 23:28:08.767 +0000 UTC ID{  0x1, 0xa0, 0xa2, 0x3f, 0xda, 0x3f, 0xb8, 0x6f, 0x57, 0x74 }
 ```
 
 ## Change Log
@@ -193,7 +211,7 @@ A comparison of various Go ID generators:
 
 | Package                                                                     | BLen | ELen | K-Sort | Encoded ID and Next                                                                                                                                                  | Unique                                    | Components                                                                            |
 | --------------------------------------------------------------------------- | ---- | ---- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------- |
-| [mwyvr/kid](https://github.com/mwyvr/kid)                                   | 10   | 16   | true   | `06h9pzbgh055wlxm`<br>`06h9pzbgh055zq02`<br>`06h9pzbgh05614t3`<br>`06h9pzbgh05621rh`                                                                                 | unique (ts(ms) + sequence) + math/rand/v2 | 6 byte ts(millisecond) : 2 byte sequence : 2 byte random                              |
+| [mwyvr/kid](https://github.com/mwyvr/kid)                                   | 10   | 16   | true   | `06h9pzbgh055wlxm`<br>`06h9pzbgh055zq02`<br>`06h9pzbgh05614t3`<br>`06h9pzbgh05621rh`                                                                                 | unique (ts(ms) + sequence) + math/rand/v2 | 6 byte ts(millisecond) : 12 bit sequence : 20 bit random (shared 4 bytes)             |
 | [rs/xid](https://github.com/rs/xid)                                         | 12   | 20   | true   | `dajcg0si5pnm303lsb70`<br>`dajcg0si5pnm303lsb7g`<br>`dajcg0si5pnm303lsb80`<br>`dajcg0si5pnm303lsb8g`                                                                 | ts(sec) + machineID + pid + counter       | 4 byte ts(sec) : 2 byte mach ID : 2 byte pid : 3 byte monotonic counter               |
 | [segmentio/ksuid](https://github.com/segmentio/ksuid)                       | 20   | 27   | true   | `3JHPZTliitkD87kI8qOnSze76ev`<br>`3JHPZSLQp9e6m3T9TRk7mAELRCI`<br>`3JHPZU5mF3LU5s3e2pxI5WOqFd3`<br>`3JHPZQHcjS1DLrQTQb039JWIeFY`                                     | ts + crypto/rand                          | 4 byte ts(sec) : 16 byte random                                                       |
 | [uuid](https://pkg.go.dev/uuid) (Go stdlib) V4                              | 16   | 36   | false  | `aac7ab78-a973-4d38-98ea-212241cb070e`<br>`d4036157-accd-466e-8c64-efcf25a55d0d`<br>`e9737579-62a9-4def-8f77-5293e848bb77`<br>`687afd55-c8ba-43c4-b60c-bec03e3315ca` | crypto/rand                               | v4: 122 bits random; 6 bits embedding version & variant                               |
