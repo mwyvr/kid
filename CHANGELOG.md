@@ -1,5 +1,15 @@
 # Change Log
 
+## v1.4.1
+
+- Fix inaccurate doc comments incorrectly identifying the overflow year
+  as 2262, the overflow year for a 64-bit _nanosecond_ timestamp, not this
+  48-bit millisecond one.
+- `IsZero` is now the canonical method (matching the `ZeroID` name and the
+  stdlib `time.Time`/`reflect.Value` convention for non-nilable value
+  types); `IsNil` is documented as an alias, kept for readers coming from
+  other ID libraries' "nil sentinel" terminology.
+
 ## v1.4.0
 
 - Require Go 1.24+ (committed benchmarks use `testing.B.Loop`).
@@ -8,13 +18,9 @@
 - Add `ValueBinary()` to write the 10-byte binary form through
   `driver.Valuer`; document the `Value`/`Scan` asymmetry.
 - `Scan` now resets the ID to `ZeroID` when given an unsupported type.
-- Package doc now states: decoding is case-sensitive (uppercase rejected),
-  uniqueness is per process, and the 6-byte timestamp overflows around 2262.
-- `Timestamp()`: single big-endian 64-bit load + shift instead of six
-  byte-shifts and ORs.
 - Add `NewWithTime(t)` for generating an ID with a fixed timestamp (tests,
   backfills, replays); out-of-range timestamps (pre-epoch or beyond the
-  6-byte field, ~year 2262) return `ErrTimestampOutOfRange`.
+  6-byte field, ~year 10889) return `ErrTimestampOutOfRange`.
 - `cmd/kid`: exit 1 when any supplied ID fails to decode; decode IDs from
   piped stdin (`kid -c N | kid` round-trips); terminal stdin still generates.
 - `TestNewUnique`: drop the wall-clock delta assertion that flaked on
