@@ -2,7 +2,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -97,7 +96,12 @@ func isTerminal(f *os.File) bool {
 }
 
 func asHex(b []byte) string {
-	return hex.EncodeToString(b)
+	s := []string{}
+	for _, v := range b {
+		s = append(s, fmt.Sprintf(" %#4x", v))
+	}
+
+	return strings.Join(s, ",")
 }
 
 // version reports the module version from the build info: a tagged or

@@ -1,4 +1,5 @@
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/mwyvr/kid)[![godoc](http://img.shields.io/badge/godev-reference-blue.svg?style=flat)](https://pkg.go.dev/github.com/mwyvr/kid?tab=doc)[![Test](https://github.com/mwyvr/kid/actions/workflows/test.yaml/badge.svg)](https://github.com/mwyvr/kid/actions/workflows/test.yaml)[![codecov](https://codecov.io/gh/mwyvr/kid/branch/main/graph/badge.svg)](https://codecov.io/gh/mwyvr/kid)[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/mwyvr/kid) [![godoc](http://img.shields.io/badge/godev-reference-blue.svg?style=flat)](https://pkg.go.dev/github.com/mwyvr/kid?tab=doc) [![Test](https://github.com/mwyvr/kid/actions/workflows/test.yaml/badge.svg)](https://github.com/mwyvr/kid/actions/workflows/test.yaml) [![codecov](https://codecov.io/gh/mwyvr/kid/branch/main/graph/badge.svg)](https://codecov.io/gh/mwyvr/kid) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 # kid
 
 Package kid (K-sortable ID) provides a goroutine-safe generator
@@ -187,71 +188,44 @@ Contributions are welcome.
 
 ## Package Comparisons
 
-`kid` was born out of a desire for a short, k-sortable unique ID where global
-uniqueness or inter-process ID generation coordination is not required.
+`kid` was born out of a desire for a short, url-friendly, k-sortable unique
+ID where global uniqueness or inter-process ID generation coordination is not
+required.
 
 A comparison of various Go ID generators:
 
-| Package                                                                     | BLen | ELen | K-Sort  | Encoded ID and Next                                                                                                                                                  | Unique                                    | Components                                                                            |
-|-----------------------------------------------------------------------------|------|------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------|---------------------------------------------------------------------------------------|
-| [mwyvr/kid](https://github.com/mwyvr/kid)                                   | 10   | 16   | true    | `06h9pzbgh055wlxm`<br>`06h9pzbgh055zq02`<br>`06h9pzbgh05614t3`<br>`06h9pzbgh05621rh`                                                                                 | unique (ts(ms) + sequence) + math/rand/v2 | 6 byte ts(millisecond) : 2 byte sequence : 2 byte random                              |
-| [rs/xid](https://github.com/rs/xid)                                         | 12   | 20   | true    | `dajcg0si5pnm303lsb70`<br>`dajcg0si5pnm303lsb7g`<br>`dajcg0si5pnm303lsb80`<br>`dajcg0si5pnm303lsb8g`                                                                 | ts(sec) + machineID + pid + counter       | 4 byte ts(sec) : 2 byte mach ID : 2 byte pid : 3 byte monotonic counter               |
-| [segmentio/ksuid](https://github.com/segmentio/ksuid)                       | 20   | 27   | true    | `3JHPZTliitkD87kI8qOnSze76ev`<br>`3JHPZSLQp9e6m3T9TRk7mAELRCI`<br>`3JHPZU5mF3LU5s3e2pxI5WOqFd3`<br>`3JHPZQHcjS1DLrQTQb039JWIeFY`                                     | ts + crypto/rand                          | 4 byte ts(sec) : 16 byte random                                                       |
-| [uuid](https://pkg.go.dev/uuid) (Go stdlib) V4                              | 16   | 36   | false   | `aac7ab78-a973-4d38-98ea-212241cb070e`<br>`d4036157-accd-466e-8c64-efcf25a55d0d`<br>`e9737579-62a9-4def-8f77-5293e848bb77`<br>`687afd55-c8ba-43c4-b60c-bec03e3315ca` | crypto/rand                               | v4: 122 bits random; 6 bits embedding version & variant                               |
-| [uuid](https://pkg.go.dev/uuid) (Go stdlib) V7                              | 16   | 36   | true    | `01a09b7d-4f80-7b34-9b65-d2e15dc3a207`<br>`01a09b7d-4f80-7b35-8a56-6b3a4c7742f1`<br>`01a09b7d-4f80-7b36-a28b-a91b959d2f85`<br>`01a09b7d-4f80-7b37-91d6-21eb314c665d` | ts(ms) + crypto/rand                      | v7: 16 bytes : 48 bits time, 12 bits sequence, 6 bits version/variant, 62 bits random |
-| [chilts/sid](https://github.com/chilts/sid)                                 | 16   | 23   | true    | `1ZKw9JMNR68-6p48iWIT_PB`<br>`1ZKw9JMNRLl-1yPbykqwhJM`<br>`1ZKw9JMNRLl-1yPbykqwhJN`<br>`1ZKw9JMNRaO-3BSf4cTC60Q`                                                     | ts + math/rand                            | 8 byte ts(nanosecond) 8 byte random                                                   |
-| [matoous/go-nanoid/v2](https://github.com/matoous/go-nanoid/)               | 21   | 21   | false   | `NsVQctw0NmE6GcxOvu6ud`<br>`vEYpx28WjykDI4G5Bg1Lq`<br>`amAaTNAg9Aq5dfYiWkb8n`<br>`jTbWN0yEwV7_BU7BfsY26`                                                             | ts + crypto/rand                          | 21 byte rand (adjustable)                                                             |
-| [sony/sonyflake](https://github.com/sony/sonyflake)                         | 8    | 13   | true    | `BDL3FJMMAEAQ4`<br>`BDL3FJMMAIAQ4`<br>`BDL3FJMMAMAQ4`<br>`BDL3FJMMAQAQ4`                                                                                             | ts + sequence + machine id                | 39 bit ts(10ms) : 8 bit seq : 16 bit mach id                                          |
-| [oklog/ulid](https://github.com/oklog/ulid)                                 | 16   | 26   | true    | `01M2DQTKW0A29MB8086M3F4Y22`<br>`01M2DQTKW03YHHB6NA20WC35TX`<br>`01M2DQTKW03K678SVFG4ZCFBVY`<br>`01M2DQTKW0BAH9D65JBXWKXKQK`                                         | ts + user-definable rand src              | 6 byte ts(ms) : 10 byte monotonic counter random init per ts(ms)                      |
-| [devjefster/GoShortUniqueID](https://github.com/devjefster/GoShortUniqueID) | 14   | 22   | false   | `260913085755GXgyDB0002`<br>`260913085755fh1TPQ0003`<br>`2609130857559cVOat0004`<br>`260913085755TyyNyr0005`                                                         | ts + math/rand + counter                  | 6 byte ts(second) : 6 base62 random : 2 byte counter (mod 10000)                      |
+| Package                                                                     | BLen | ELen | K-Sort | Encoded ID and Next                                                                                                                                                  | Unique                                    | Components                                                                            |
+| --------------------------------------------------------------------------- | ---- | ---- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| [mwyvr/kid](https://github.com/mwyvr/kid)                                   | 10   | 16   | true   | `06h9pzbgh055wlxm`<br>`06h9pzbgh055zq02`<br>`06h9pzbgh05614t3`<br>`06h9pzbgh05621rh`                                                                                 | unique (ts(ms) + sequence) + math/rand/v2 | 6 byte ts(millisecond) : 2 byte sequence : 2 byte random                              |
+| [rs/xid](https://github.com/rs/xid)                                         | 12   | 20   | true   | `dajcg0si5pnm303lsb70`<br>`dajcg0si5pnm303lsb7g`<br>`dajcg0si5pnm303lsb80`<br>`dajcg0si5pnm303lsb8g`                                                                 | ts(sec) + machineID + pid + counter       | 4 byte ts(sec) : 2 byte mach ID : 2 byte pid : 3 byte monotonic counter               |
+| [segmentio/ksuid](https://github.com/segmentio/ksuid)                       | 20   | 27   | true   | `3JHPZTliitkD87kI8qOnSze76ev`<br>`3JHPZSLQp9e6m3T9TRk7mAELRCI`<br>`3JHPZU5mF3LU5s3e2pxI5WOqFd3`<br>`3JHPZQHcjS1DLrQTQb039JWIeFY`                                     | ts + crypto/rand                          | 4 byte ts(sec) : 16 byte random                                                       |
+| [uuid](https://pkg.go.dev/uuid) (Go stdlib) V4                              | 16   | 36   | false  | `aac7ab78-a973-4d38-98ea-212241cb070e`<br>`d4036157-accd-466e-8c64-efcf25a55d0d`<br>`e9737579-62a9-4def-8f77-5293e848bb77`<br>`687afd55-c8ba-43c4-b60c-bec03e3315ca` | crypto/rand                               | v4: 122 bits random; 6 bits embedding version & variant                               |
+| [uuid](https://pkg.go.dev/uuid) (Go stdlib) V7                              | 16   | 36   | true   | `01a09b7d-4f80-7b34-9b65-d2e15dc3a207`<br>`01a09b7d-4f80-7b35-8a56-6b3a4c7742f1`<br>`01a09b7d-4f80-7b36-a28b-a91b959d2f85`<br>`01a09b7d-4f80-7b37-91d6-21eb314c665d` | ts(ms) + crypto/rand                      | v7: 16 bytes : 48 bits time, 12 bits sequence, 6 bits version/variant, 62 bits random |
+| [chilts/sid](https://github.com/chilts/sid)                                 | 16   | 23   | true   | `1ZKw9JMNR68-6p48iWIT_PB`<br>`1ZKw9JMNRLl-1yPbykqwhJM`<br>`1ZKw9JMNRLl-1yPbykqwhJN`<br>`1ZKw9JMNRaO-3BSf4cTC60Q`                                                     | ts + math/rand                            | 8 byte ts(nanosecond) 8 byte random                                                   |
+| [matoous/go-nanoid/v2](https://github.com/matoous/go-nanoid/)               | 21   | 21   | false  | `NsVQctw0NmE6GcxOvu6ud`<br>`vEYpx28WjykDI4G5Bg1Lq`<br>`amAaTNAg9Aq5dfYiWkb8n`<br>`jTbWN0yEwV7_BU7BfsY26`                                                             | ts + crypto/rand                          | 21 byte rand (adjustable)                                                             |
+| [sony/sonyflake](https://github.com/sony/sonyflake)                         | 8    | 13   | true   | `BDL3FJMMAEAQ4`<br>`BDL3FJMMAIAQ4`<br>`BDL3FJMMAMAQ4`<br>`BDL3FJMMAQAQ4`                                                                                             | ts + sequence + machine id                | 39 bit ts(10ms) : 8 bit seq : 16 bit mach id                                          |
+| [oklog/ulid](https://github.com/oklog/ulid)                                 | 16   | 26   | true   | `01M2DQTKW0A29MB8086M3F4Y22`<br>`01M2DQTKW03YHHB6NA20WC35TX`<br>`01M2DQTKW03K678SVFG4ZCFBVY`<br>`01M2DQTKW0BAH9D65JBXWKXKQK`                                         | ts + user-definable rand src              | 6 byte ts(ms) : 10 byte monotonic counter random init per ts(ms)                      |
+| [devjefster/GoShortUniqueID](https://github.com/devjefster/GoShortUniqueID) | 14   | 22   | false  | `260913085755GXgyDB0002`<br>`260913085755fh1TPQ0003`<br>`2609130857559cVOat0004`<br>`260913085755TyyNyr0005`                                                         | ts + math/rand + counter                  | 6 byte ts(second) : 6 base62 random : 2 byte counter (mod 10000)                      |
 
 ## Package Benchmarks
 
-kid's `New()` is lock-free and allocation-free, and generation scales with
-cores; against rs/xid — the fastest comparable generator — it is effectively
-a draw on amd64 and within ~20% on Apple silicon, while additionally
-guaranteeing strictly increasing timestamp+sequence ordering.
+The benchmarks presented are intended to demonstrate nothing more than that the
+design of `kid.New()` stands up to heavy use, maintaining low and predictable
+cost under concurrent use on both amd64 and arm64 platforms.
 
-Benchmarked with Go 1.26 (`go test -cpu 1,2,4,8,16,32 -test.benchmem -bench .`
-in [eval/bench](eval/bench/bench_test.go)). On Linux, set the scaling
-governor to `performance`; on macOS laptops, use High Power mode:
-
-    echo "performance" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-
-```
-goos: linux
-goarch: amd64
-cpu: Intel(R) Core(TM) i9-14900K
-BenchmarkKid                    36166317                28.90 ns/op            0 B/op          0 allocs/op
-BenchmarkKid-2                  35779724                30.58 ns/op            0 B/op          0 allocs/op
-BenchmarkKid-4                  38237456                32.65 ns/op            0 B/op          0 allocs/op
-BenchmarkKid-8                  32437368                33.14 ns/op            0 B/op          0 allocs/op
-BenchmarkKid-16                 33878541                35.40 ns/op            0 B/op          0 allocs/op
-BenchmarkKid-32                 51138286                22.47 ns/op            0 B/op          0 allocs/op
-BenchmarkXid                    44153774                27.32 ns/op            0 B/op          0 allocs/op
-BenchmarkXid-2                  43354214                28.38 ns/op            0 B/op          0 allocs/op
-BenchmarkXid-4                  36619646                28.60 ns/op            0 B/op          0 allocs/op
-BenchmarkXid-8                  38258444                29.05 ns/op            0 B/op          0 allocs/op
-BenchmarkXid-16                 48193314                32.18 ns/op            0 B/op          0 allocs/op
-BenchmarkXid-32                 56045674                20.66 ns/op            0 B/op          0 allocs/op
-```
-
-```
-goos: darwin
-goarch: arm64
-cpu: Apple M4 Max
-BenchmarkKid                    38023658                31.19 ns/op            0 B/op          0 allocs/op
-BenchmarkKid-2                  37417369                31.95 ns/op            0 B/op          0 allocs/op
-BenchmarkKid-4                  39099517                30.96 ns/op            0 B/op          0 allocs/op
-BenchmarkKid-8                  19487215                60.74 ns/op            0 B/op          0 allocs/op
-BenchmarkKid-16                 15209077                79.36 ns/op            0 B/op          0 allocs/op
-BenchmarkXid                    38485384                31.06 ns/op            0 B/op          0 allocs/op
-BenchmarkXid-2                  36064644                30.28 ns/op            0 B/op          0 allocs/op
-BenchmarkXid-4                  44846259                28.37 ns/op            0 B/op          0 allocs/op
-BenchmarkXid-8                  26422333                46.76 ns/op            0 B/op          0 allocs/op
-BenchmarkXid-16                 18502420                65.51 ns/op            0 B/op          0 allocs/op
-```
-
-For a broader comparison including ksuid, the stdlib uuid (V4 and V7),
-ulid, sonyflake, and GoShortUniqueID, run the suite in
+See [BENCHMARKS.md](eval/bench/BENCHMARKS.md) for a broader
+comparison on Linux amd64 and macOS arm64 including the stdlib uuid
+(V4 and V7), ksuid, ulid, sonyflake, and others, or run the suite in
 [eval/bench](eval/bench/bench_test.go) on your own hardware.
+
+    ❯ go1.27.1 test -cpu 1,2,4,8,16,32 -test.benchmem -bench .
+    goos: linux
+    goarch: amd64
+    pkg: github.com/mwyvr/kid/eval/bench
+    cpu: Intel(R) Core(TM) i9-14900K
+    BenchmarkKid                    33479890                29.90 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid-2                  37299408                30.42 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid-4                  39092158                34.42 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid-8                  37107082                35.16 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid-16                 32040319                37.40 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid-32                 48334761                24.43 ns/op            0 B/op          0 allocs/op
