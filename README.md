@@ -12,7 +12,8 @@ The 10-byte binary representation of an ID is composed of:
 - 2-byte sequence, and,
 - 2-byte random value.
 
-IDs encode (base32) as 16-byte url-friendly strings that look like:
+Using a custom base32 encoding, IDs encode as 16-byte url-friendly strings that
+look like:
 
     06bqj05bhh2lcbdb
 
@@ -22,6 +23,9 @@ before decoding is the caller's responsibility.
 
 ## kid.ID features
 
+kid has no dependencies outside the standard library, and requires Go 1.24+
+(benchmarks use `testing.B.Loop`).
+
 - Size: 10 bytes as binary, 16 bytes if stored/transported as an encoded string.
 - Timestamp + sequence is guaranteed to be unique and monotonically increasing
   for each call to New(), even if the wall clock steps backwards.
@@ -30,15 +34,11 @@ before decoding is the caller's responsibility.
 - K-orderable in both binary and base32 encoded representations; the encoding
   alphabet is in ascending ASCII order, so encoded strings sort identically to
   the underlying bytes.
-- Lock-free, allocation-free ID generation that scales with cores; no mutex
-  in the New() path.
+- Lock-free, allocation-free ID generation that scales with cores; there is no
+  mutex in the New() path.
 - URL-friendly custom encoding without the vowels a, i, o, and u.
 - Automatic (un)/marshalling for SQL and JSON.
 - cmd/kid tool for ID generation and introspection.
-
-Requires Go 1.24+ (the committed benchmarks use `testing.B.Loop`); no newer
-version is needed for performance — the numbers published here were produced
-with Go 1.26. kid has no dependencies outside the standard library.
 
 **Security note**: an ID carries only 16 bits of randomness alongside values
 derived from the clock; IDs are predictable by design. Do not use kid IDs
@@ -116,21 +116,21 @@ use a coordinated or longer ID (xid, uuid).
 
 An ID's uniqueness is carried entirely by the timestamp+sequence pair: 4,096
 sequence slots per millisecond, or a sustained capacity of ~4.1 million IDs
-per second, per process. (The random bytes multiply the namespace, not the
-capacity.) A clock reading derives the sequence from the fractional
-nanoseconds at 256ns granularity, yielding values 0-3906; the remaining
-slots up to 4095 are headroom consumed under load before the sequence
-borrows into the next millisecond.
+per second, per process.
 
-Generation bursts exceeding ~4.1M IDs/s — trivially reached by benchmarks,
-rarely by applications — push the internal clock ahead of real time: each
+A clock reading derives the sequence from the fractional nanoseconds at 256ns
+granularity, yielding values 0-3906; the remaining slots up to 4095 are headroom
+consumed under load before the sequence borrows into the next millisecond.
+
+Generation bursts exceeding ~4.1M IDs/s, trivially reached by benchmarks
+but rarely by applications, push the internal clock ahead of real time: each
 second of full-rate generation consumes several seconds of timestamp space,
-and the embedded timestamps lead the wall clock until generation slows and
-real time catches up. Nothing about uniqueness or ordering is affected; IDs
-remain strictly k-sortable in generation order at any rate. The practical
-guidance: kid is a good fit for systems that treat the embedded time as
-approximate metadata, and a poor fit for systems that require ID timestamps
-to be exact wall-clock instants under extreme generation rates.
+and the embedded timestamps lead the wall clock until generation slows and real
+time catches up. Nothing about uniqueness or ordering is affected; IDs remain
+strictly k-sortable in generation order at any rate. The practical guidance: kid
+is a good fit for systems that treat the embedded time as approximate metadata,
+and a poor fit for systems that require ID timestamps to be exact wall-clock
+instants under extreme generation rates.
 
 ### For the doubtful
 
@@ -160,9 +160,6 @@ verification; size count x goroutines to available RAM.
 Package `kid` also provides a tool for id generation and inspection:
 
 ```bash
-$ kid -version
-kid v1.3.0 (go1.26.3 linux/amd64)
-
 $ kid
 06bpwm8x107evvh9
 
@@ -176,15 +173,15 @@ kid $(kid -c 4)
 06bpwlvhb86gcdw6 ts:1741312454738 seq:3317 rnd:45958 2025-03-07 01:54:14.738 +0000 UTC ID{  0x1, 0x95, 0x6e, 0x4f, 0x70, 0x52,  0xc, 0xf5, 0xb3, 0x86 }
 06bpwlvhb86gkmks ts:1741312454738 seq:3320 rnd:53817 2025-03-07 01:54:14.738 +0000 UTC ID{  0x1, 0x95, 0x6e, 0x4f, 0x70, 0x52,  0xc, 0xf8, 0xd2, 0x39 }
 06bpwlvhb86gmb73 ts:1741312454738 seq:3322 rnd:10467 2025-03-07 01:54:14.738 +0000 UTC ID{  0x1, 0x95, 0x6e, 0x4f, 0x70, 0x52,  0xc, 0xfa, 0x28, 0xe3 }
+
+# decode and inspect from stdin
+echo 06bpwlvhb86bypp7 | kid
+06bpwlvhb86bypp7 ts:1741312454738 seq:3247 rnd:23239 2025-03-07 01:54:14.738 +0000 UTC ID{  0x1, 0x95, 0x6e, 0x4f, 0x70, 0x52,  0xc, 0xaf, 0x5a, 0xc7 }
 ```
 
 ## Change Log
 
 See [CHANGELOG.md](CHANGELOG.md).
-
-## Contributing
-
-Contributions are welcome.
 
 ## Package Comparisons
 

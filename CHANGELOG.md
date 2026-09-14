@@ -1,7 +1,8 @@
 # Change Log
 
-## Unreleased (main)
+## v1.4.0
 
+- Require Go 1.24+ (committed benchmarks use `testing.B.Loop`).
 - Export `ZeroID` (previously the unexported `nilID`); document that it is
   both the nil sentinel and a valid, decodable ID.
 - Add `ValueBinary()` to write the 10-byte binary form through
@@ -14,7 +15,6 @@
 - Add `NewWithTime(t)` for generating an ID with a fixed timestamp (tests,
   backfills, replays); out-of-range timestamps (pre-epoch or beyond the
   6-byte field, ~year 2262) return `ErrTimestampOutOfRange`.
-- Require Go 1.24+ (committed benchmarks use `testing.B.Loop`).
 - `cmd/kid`: exit 1 when any supplied ID fails to decode; decode IDs from
   piped stdin (`kid -c N | kid` round-trips); terminal stdin still generates.
 - `TestNewUnique`: drop the wall-clock delta assertion that flaked on
