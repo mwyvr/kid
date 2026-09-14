@@ -828,10 +828,10 @@ func TestGetTSBurstMonotonic(t *testing.T) {
 	fixed := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
 	timeNow = func() time.Time { return fixed }
 
-	prev := int64(-1)
+	prev := uint64(0)
 	for i := range 10000 {
 		m, s := getTS()
-		if s < 0 || s > 0xfff {
+		if s > 0xfff {
 			t.Fatalf("call %d: sequence %d out of 12-bit range", i, s)
 		}
 		now := m<<12 + s

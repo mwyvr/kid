@@ -20,7 +20,7 @@ processes that derive the same timestamp+sequence are separated only by the
 16 random bits (1 in 65,536). Use a coordinated or longer ID (xid, uuid)
 where cross-machine uniqueness is required.
 
-The zero value, ZeroID, is both the nil sentinel (IsNil) and a valid,
+The zero value, ZeroID, is both the nil sentinel (IsZero) and a valid,
 decodable ID: FromString("0000000000000000") decodes to it. A JSON null into
 a *ID nils the pointer without calling UnmarshalJSON.
 
@@ -78,7 +78,7 @@ const (
 )
 
 var (
-	// ZeroID is the zero value of ID: the nil sentinel (see IsNil) and a
+	// ZeroID is the zero value of ID: the nil sentinel (see IsZero) and a
 	// valid, decodable ID. It is compared against, never modified.
 	ZeroID ID
 	// dec maps an alphabet character to its 5-bit value; maxByte marks
@@ -89,7 +89,7 @@ var (
 	// kid encoding.
 	ErrInvalidID = errors.New("kid: invalid id")
 	// ErrTimestampOutOfRange is returned by NewWithTime when t does not fit
-	// the 6-byte millisecond field: before 1970 or after ~2262.
+	// the 6-byte millisecond field: before 1970 or after ~10889.
 	ErrTimestampOutOfRange = errors.New("kid: timestamp out of range")
 )
 
@@ -129,12 +129,12 @@ func NewWithTime(t time.Time) (id ID, err error) {
 	}
 	// Nanosecond stays well-defined where UnixNano would overflow.
 	sub := int64(t.Nanosecond()) % nanoPerMilli
-	return buildID(milli, sub>>8), nil
+	return buildID(uint64(milli), uint64(sub>>8)), nil
 }
 
 // buildID lays out milli (48 bits), seq (12 bits), and 2 random bytes.
 // Callers must keep milli and seq in range.
-func buildID(milli, seq int64) (id ID) {
+func buildID(milli, seq uint64) (id ID) {
 	// timestamp, 6 bytes, big endian
 	id[0] = byte(milli >> 40)
 	id[1] = byte(milli >> 32)
@@ -152,15 +152,18 @@ func buildID(milli, seq int64) (id ID) {
 	return id
 }
 
-// IsNil reports whether id is the zero value, ZeroID. Note that ZeroID is
+// IsZero reports whether id is the zero value, ZeroID. Note that ZeroID is
 // also a valid, decodable ID.
-func (id ID) IsNil() bool {
+func (id ID) IsZero() bool {
 	return id == ZeroID
 }
 
-// IsZero reports whether id is the zero value. It is an alias for IsNil.
-func (id ID) IsZero() bool {
-	return id.IsNil()
+// IsNil reports whether id is the zero value. It is an alias for IsZero,
+// kept for readers familiar with the "nil sentinel" terminology common to
+// other ID libraries (e.g. uuid.Nil); ID itself, being an array, is never
+// nil in the language sense.
+func (id ID) IsNil() bool {
+	return id.IsZero()
 }
 
 // Encode writes the 16-byte base32 encoding of id to dst and returns it.
@@ -268,7 +271,7 @@ func decode(id *ID, src []byte) {
 // store the 10-byte binary form (e.g. in a VARBINARY(10) column), use
 // ValueBinary. Scan reads both back.
 func (id ID) Value() (driver.Value, error) {
-	if id.IsNil() {
+	if id.IsZero() {
 		return nil, nil
 	}
 	return id.String(), nil
@@ -277,7 +280,7 @@ func (id ID) Value() (driver.Value, error) {
 // ValueBinary implements driver.Valuer, returning a copy of the 10-byte
 // binary form, or nil for ZeroID. Scan reads both forms back.
 func (id ID) ValueBinary() (driver.Value, error) {
-	if id.IsNil() {
+	if id.IsZero() {
 		return nil, nil
 	}
 	return id.Bytes(), nil
@@ -342,7 +345,7 @@ func (id ID) Bytes() []byte {
 }
 
 // Timestamp returns the timestamp component of id, milliseconds since the
-// Unix epoch. The 6-byte field overflows around the year 2262.
+// Unix epoch. The 6-byte field overflows around the year 10889.
 func (id ID) Timestamp() int64 {
 	// First 8 bytes as one big-endian uint64, shifted to drop the sequence.
 	return int64(binary.BigEndian.Uint64(id[:]) >> 16)
@@ -382,9 +385,11 @@ func Sort(ids []ID) {
 }
 
 var (
-	// lastTime is the last issued ts+seq: 52 bits of milliseconds since
-	// epoch (valid until ~2262) and 12 bits of (fractional nanoseconds >> 8).
-	lastTime atomic.Int64
+	// lastTime is the last issued ts+seq, packed as milli<<12 | seq: 52 bits
+	// of milliseconds since epoch (valid until ~year 144683) and 12 bits of
+	// (fractional nanoseconds >> 8). Unsigned so the full 64 bits are
+	// available to the packing (no sign bit to reserve).
+	lastTime atomic.Uint64
 	timeNow  = time.Now // for testing
 )
 
@@ -397,11 +402,12 @@ const nanoPerMilli = 1000000
 // strictly increase lastTime and return exactly the value installed, so
 // every (milli << 12 + seq) is strictly greater than any previous one, even
 // if the wall clock steps backwards, with no retry loop.
-func getTS() (milli, seq int64) {
+func getTS() (milli, seq uint64) {
 	nano := timeNow().UnixNano()
-	milli = nano / nanoPerMilli
+	m := nano / nanoPerMilli
 	// seq is 0-3906 clock-derived; the increment path can return up to 4095
-	seq = (nano - milli*nanoPerMilli) >> 8
+	s := (nano - m*nanoPerMilli) >> 8
+	milli, seq = uint64(m), uint64(s)
 	now := milli<<12 + seq
 	if last := lastTime.Load(); now > last && lastTime.CompareAndSwap(last, now) {
 		return milli, seq
