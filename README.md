@@ -61,7 +61,11 @@ reset codes.
 
 ## Example usage
 
+_Note: importing github.com/mwyvr/kid (no /v2) resolves to the old v1.x line._
+
 ```go
+import "github.com/mwyvr/kid/v2"
+
 func main() {
 	id := kid.New()
 	fmt.Printf("%s %03v\n", id, id[:])
@@ -191,19 +195,45 @@ The benchmarks presented are intended to demonstrate nothing more than that the
 design of `kid.New()` stands up to heavy use, maintaining low and predictable
 cost under concurrent use on both amd64 and arm64 platforms.
 
-See [BENCHMARKS.md](eval/bench/BENCHMARKS.md) for a broader
-comparison on Linux amd64 and macOS arm64 including the stdlib uuid
-(V4 and V7), ksuid, ulid, sonyflake, and others, or run the suite in
+See [BENCHMARKS.md](eval/bench/BENCHMARKS.md) for a broader comparison of
+unique ID generators on Linux amd64 and macOS arm64 including the stdlib
+uuid (V4 and V7), ksuid, ulid, sonyflake, and others, or run the suite in
 [eval/bench](eval/bench/bench_test.go) on your own hardware.
 
     ❯ go1.27.1 test -cpu 1,2,4,8,16,32 -test.benchmem -bench .
     goos: linux
     goarch: amd64
-    pkg: github.com/mwyvr/kid/v2/eval/bench
+    pkg: github.com/mwyvr/kid/v2
     cpu: Intel(R) Core(TM) i9-14900K
-    BenchmarkKid                    39246956                30.24 ns/op            0 B/op          0 allocs/op
-    BenchmarkKid-2                  40488458                28.21 ns/op            0 B/op          0 allocs/op
-    BenchmarkKid-4                  36920178                32.40 ns/op            0 B/op          0 allocs/op
-    BenchmarkKid-8                  36412285                32.19 ns/op            0 B/op          0 allocs/op
-    BenchmarkKid-16                 34016721                35.04 ns/op            0 B/op          0 allocs/op
-    BenchmarkKid-32                 52991698                21.57 ns/op            0 B/op          0 allocs/op
+    BenchmarkNew                    38046988                29.71 ns/op            0 B/op          0 allocs/op
+    BenchmarkNew-2                  40352128                29.83 ns/op            0 B/op          0 allocs/op
+    BenchmarkNew-4                  39710808                30.01 ns/op            0 B/op          0 allocs/op
+    BenchmarkNew-8                  40279496                29.89 ns/op            0 B/op          0 allocs/op
+    BenchmarkNew-16                 40396380                30.18 ns/op            0 B/op          0 allocs/op
+    BenchmarkNew-32                 40179172                29.94 ns/op            0 B/op          0 allocs/op
+    BenchmarkNewString              27826102                45.36 ns/op           16 B/op          1 allocs/op
+    BenchmarkNewString-2            28048222                41.18 ns/op           16 B/op          1 allocs/op
+    BenchmarkNewString-4            28122034                42.69 ns/op           16 B/op          1 allocs/op
+    BenchmarkNewString-8            28368165                43.74 ns/op           16 B/op          1 allocs/op
+    BenchmarkNewString-16           27811158                44.45 ns/op           16 B/op          1 allocs/op
+    BenchmarkNewString-32           27724928                44.58 ns/op           16 B/op          1 allocs/op
+    BenchmarkString                 100000000               12.20 ns/op           16 B/op          1 allocs/op
+    BenchmarkString-2               121070028                9.911 ns/op          16 B/op          1 allocs/op
+    BenchmarkString-4               100000000               10.33 ns/op           16 B/op          1 allocs/op
+    BenchmarkString-8               97643074                11.58 ns/op           16 B/op          1 allocs/op
+    BenchmarkString-16              100000000               12.09 ns/op           16 B/op          1 allocs/op
+    BenchmarkString-32              96289940                12.21 ns/op           16 B/op          1 allocs/op
+    BenchmarkParse                  141483474                8.462 ns/op           0 B/op          0 allocs/op
+    BenchmarkParse-2                142408776                8.422 ns/op           0 B/op          0 allocs/op
+    BenchmarkParse-4                141267079                8.488 ns/op           0 B/op          0 allocs/op
+    BenchmarkParse-8                142221249                8.417 ns/op           0 B/op          0 allocs/op
+    BenchmarkParse-16               140905765                8.532 ns/op           0 B/op          0 allocs/op
+    BenchmarkParse-32               141692726                8.466 ns/op           0 B/op          0 allocs/op
+    BenchmarkUnmarshalJSON          132506348                9.034 ns/op           0 B/op          0 allocs/op
+    BenchmarkUnmarshalJSON-2        131007627                9.121 ns/op           0 B/op          0 allocs/op
+    BenchmarkUnmarshalJSON-4        131888546                9.109 ns/op           0 B/op          0 allocs/op
+    BenchmarkUnmarshalJSON-8        132198770                9.105 ns/op           0 B/op          0 allocs/op
+    BenchmarkUnmarshalJSON-16       132018472                9.077 ns/op           0 B/op          0 allocs/op
+    BenchmarkUnmarshalJSON-32       133290877                9.012 ns/op           0 B/op          0 allocs/op
+    PASS
+    ok      github.com/mwyvr/kid/v2 36.430s
