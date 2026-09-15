@@ -1,13 +1,52 @@
 # Change Log
 
-## v2.0.0
+## v2.1.0
+
+### Removed, a little late
+
+- Removed `Encode(dst []byte) []byte`, a historical wart from rs/xid. It
+  duplicated `AppendText`'s job but less safely: `AppendText` grows its buffer
+  as needed, where `Encode` panicked on a `dst` shorter than 16 bytes with only
+  a docstring to warn you. `AppendText` covers the same zero-allocation use case
+  (pass a buffer with sufficient capacity) without the panic risk. Bundled into
+  a minor release rather than a `/v3` bump as removing it was overlooked when I
+  tagged `v2.0.0` hours ago.
+
+### Fixed
+
+- `cmd/kid`: decode errors now go to stderr instead of stdout, so
+  `kid -c N | kid` output stays clean on the valid path.
+- `TestIDDriverValue`: a vacuous `&&` should have been `||`;
+  `ZeroID.Value()`'s nil/nil case was never actually being checked.
+- `TestNewWithTime`: parenthesized the `%`/`>>` sequence calculation.
+  Correct as written (Go gives the two operators equal precedence), but
+  easy for a future edit to "fix" into the wrong grouping.
+
+### Added
+
+- Test coverage for `AppendText`, `MarshalBinary`, `AppendBinary`, and
+  `UnmarshalBinary` — added for v2.0.0 but untested until now; coverage
+  restored to 100%.
+
+### Docs
+
+- README trimmed to install/usage/CLI essentials.
+- New DESIGN.md: byte layout, the v1→v2 bit-reclaim rationale, the full
+  uniqueness/capacity discussion and verification recipes, and the
+  package comparison table — all moved out of the README and the
+  package doc.
+- kid.go's package doc trimmed: dropped the inline usage example (real
+  `Example` functions already cover it) and the Acknowledgments
+  history, aiming for the density of Go's own uuid package doc.
+
+## v2.0.0 - Modernizing and tidying up kid
 
 Module path is now `github.com/mwyvr/kid/v2`; update imports accordingly.
 
 ### Breaking
 
 - **ID layout**: the trailing 4 bytes (previously a clean 2-byte sequence
-  + 2-byte random split) are now a single big-endian 32-bit field: a
+  / 2-byte random split) are now a single big-endian 32-bit field: a
   12-bit sequence in the high bits, followed by 20 bits of randomness in
   the low bits, with the sequence kept more significant so k-sortability
   is unaffected. v1's 2-byte sequence field only ever used its low 12
@@ -20,7 +59,7 @@ Module path is now `github.com/mwyvr/kid/v2`; update imports accordingly.
   IDs generated under v1 remain completely valid under v2 — they still
   decode, compare, sort, and round-trip correctly, since those operations
   treat the 10 bytes as opaque. Only `Sequence()`/`Random()` introspection
-  is affected: calling either on a *pre-v2* ID under v2 code will not
+  is affected: calling either on a _pre-v2_ ID under v2 code will not
   recover the original v1 sequence/random split, since the bit boundaries
   moved. Identity, ordering, and storage are unaffected either way.
 - `Sequence()` now returns `uint16` (was `int32`); `Random()` now returns
