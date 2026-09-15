@@ -305,14 +305,6 @@ func TestIDString(t *testing.T) {
 	}
 }
 
-func TestIDEncode(t *testing.T) {
-	id := ID{0x63, 0xac, 0x76, 0xd3, 0xff, 0xff, 0xfc, 0x30, 0x37, 0xc2}
-	text := make([]byte, encodedLen)
-	if got, want := string(id.Encode(text)), "dfp7emzzzzy30ey2"; got != want {
-		t.Errorf("Encode() = %v, want %v", got, want)
-	}
-}
-
 func TestParse(t *testing.T) {
 	// 06bprdfln4x281hd ts:1741276959657 seq:930 rnd:263692 2025-03-06 16:02:39.657 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x31, 0xd3, 0xa9, 0x3a, 0x24,  0x6,  0xc }
 	got, err := Parse("06bprdfln4x281hd")

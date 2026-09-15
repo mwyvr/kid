@@ -189,13 +189,6 @@ func (id ID) IsNil() bool {
 	return id.IsZero()
 }
 
-// Encode writes the 16-byte base32 encoding of id to dst and returns it.
-// dst must have length at least 16; a shorter slice panics.
-func (id ID) Encode(dst []byte) []byte {
-	encode(dst, id[:])
-	return dst
-}
-
 // String returns the 16-character base32 encoding of id.
 func (id ID) String() string {
 	text := make([]byte, encodedLen)
