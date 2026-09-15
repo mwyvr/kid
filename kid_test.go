@@ -132,7 +132,7 @@ func TestNewWithTime(t *testing.T) {
 	if got, want := id.Timestamp(), tm.UnixMilli(); got != want {
 		t.Errorf("Timestamp = %d, want %d", got, want)
 	}
-	if got, want := id.Sequence(), uint16(int64(tm.Nanosecond())%nanoPerMilli>>8); got != want {
+	if got, want := id.Sequence(), uint16((int64(tm.Nanosecond())%nanoPerMilli)>>8); got != want {
 		t.Errorf("Sequence = %d, want %d", got, want)
 	}
 	if got := id.Time().UTC(); !got.Equal(tm.Truncate(time.Millisecond)) {
@@ -527,7 +527,7 @@ func TestIDDriverValue(t *testing.T) {
 		t.Errorf("Value() = %v, want %v", got, want)
 	}
 	got, err = ZeroID.Value()
-	if got != nil && err != nil {
+	if got != nil || err != nil {
 		t.Errorf("ZeroID.Value() should return nil, nil, got: %v, %v", got, err)
 	}
 	got, err = id.ValueBinary()
