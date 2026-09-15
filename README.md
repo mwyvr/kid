@@ -6,9 +6,14 @@ Package kid (K-sortable ID) provides a goroutine-safe generator
 of short (10 byte binary, 16 bytes when base32 encoded), url-safe,
 [k-sortable](https://en.wikipedia.org/wiki/K-sorted_sequence) unique IDs.
 
+Using a custom base32 encoding, IDs encode as url-friendly strings that
+look like:
+
+    06hb4fpsz04dpx4p
+
 The 10-byte binary representation of an ID is composed of:
 
-- 6-byte value representing Unix time in milliseconds
+- 6-byte value representing Unix time in milliseconds (max date 10889-08-02)
 - 12-bit sequence, and,
 - 20 bits of randomness, with k-sortability preserved
 
@@ -17,9 +22,9 @@ byte:    0    1    2    3    4    5    6    7    8    9
       +----+----+----+----+----+----+----+----+----+----+
       |        unix_ts_ms (48 bits)      |  seq + rnd   |
       +----+----+----+----+----+----+----+----+----+----+
-                                         \____________/
-                                               |
-        bytes 6-9, one 32-bit big-endian field-+
+                                     \_________________/
+                                              |
+        bytes 6-9, a 32-bit big-endian field--+
 
  bit: 31                  20 19                         0
       +---------------------+---------------------------+
@@ -28,15 +33,6 @@ byte:    0    1    2    3    4    5    6    7    8    9
         higher bits: sorts first within a millisecond, so
         randomness never disturbs k-sortability
 ```
-
-Using a custom base32 encoding, IDs encode as 16-byte url-friendly strings that
-look like:
-
-    06hb4fpsz04dpx4p
-
-Decoding is case-sensitive: only the lowercase alphabet is accepted, and
-uppercase or mixed-case input returns `ErrInvalidID`. Lowercasing such input
-before decoding is the caller's responsibility.
 
 ## kid.ID features
 
@@ -51,9 +47,9 @@ kid has no dependencies outside the standard library, and requires Go 1.24+
 - K-orderable in both binary and base32 encoded representations; the encoding
   alphabet is in ascending ASCII order, so encoded strings sort identically to
   the underlying bytes.
+- URL-friendly custom encoding without the vowels a, i, o, and u.
 - Lock-free, allocation-free ID generation that scales with cores; there is no
   mutex in the New() path.
-- URL-friendly custom encoding without the vowels a, i, o, and u.
 - Automatic (un)/marshalling for SQL, JSON, text, and binary
   (TextAppender/BinaryAppender, encoding.BinaryMarshaler/BinaryUnmarshaler).
 - cmd/kid tool for ID generation and introspection.
@@ -100,82 +96,49 @@ Third-party copyright notices and license texts are reproduced in
 
 ## Uniqueness
 
-Each call to `kid.New()` is guaranteed to return a unique ID with a
-timestamp+sequence greater than any previous call, even across goroutines
-and even if the system clock steps backwards.
+Every call to `kid.New()` returns a unique ID, even from many goroutines at
+once, and even if the system clock jumps backwards.
 
-To satisfy whether kid.IDs are unique, run
-[eval/uniqcheck/main.go](eval/uniqcheck/main.go), which generates IDs
-concurrently without locking, then verifies post-hoc that no
-timestamp+sequence pair ever repeats and that each goroutine observed
-strictly increasing IDs:
+Within a process, this is guaranteed, not just likely: the timestamp and
+sequence come from one shared atomic counter, so two calls can no more
+return the same value than two goroutines incrementing a counter can. It
+doesn't depend on the random bytes at all.
 
-    $ go run eval/uniqcheck/main.go -count 2000000 -goroutines 20
-    # example output:
-    uniqcheck: generating 2,000,000 IDs on each of 20 goroutines...
-    Total IDs: 40,000,000  ts+seq dupes: 0  full-ID dupes: 0  ordering violations: 0
+Across different processes or machines, there's no coordination — kid
+trades that away to stay short (it skips the machine ID and PID bytes some
+other ID schemes use). Two processes would need to land on the exact same
+millisecond and sequence value to even risk colliding, and even then
+they're still separated by 20 bits of randomness — about 1 chance in a
+million. If you need guaranteed uniqueness across machines, reach for
+something coordinated or longer, like xid or uuid.
 
-Or, at the command line, produce IDs and use OS utilities to check (single-threaded):
+**Capacity:** a process can generate up to 4,096 IDs per millisecond (~4.1
+million per second). While it is easy to push past that in a benchmark, it is
+unlikely to happen in applications kid is a good fit for. in a real application
+is unlikely to push past that. Nevertheless, in such conditions the embedded
+timestamp starts running ahead of the real clock to keep every ID unique
+and sortable. IDs stay correctly ordered no matter what, but the timestamp
+becomes an approximation rather than an exact "created at" instant once you're
+generating that fast.
 
-    $ go install github.com/mwyvr/kid/v2/cmd/kid@latest
-    $ kid -c 2000000 | sort | uniq -d
-    // None output
+### Checking the claims yourself
 
-### Uniqueness scope
+- **Concurrency:** `go test -race -run TestNewUniqueParallel .` runs ID
+  generation under Go's race detector.
+- **Decoding:** `go test -fuzz '^FuzzParse$' -fuzztime 60s .` (and the other
+  `Fuzz*` targets) fuzz the decode paths.
+- **Brute force:** [`eval/uniqcheck`](eval/uniqcheck/main.go) generates
+  millions of IDs across many goroutines to confirm uniqueness and ordering.
 
-The guarantee is per process: the timestamp+sequence pair is claimed from a
-single atomic value, so two calls within one process can no more collide
-than two atomic increments can return the same number — uniqueness is
-structural, not probabilistic, and does not depend on the random bytes.
-Across processes or machines there is no coordination (kid deliberately
-omits xid's machine ID and PID bytes in exchange for shortness): two
-processes that derive the same timestamp+sequence in the same ~256ns window
-are separated only by the 20 bits of randomness, a 1-in-1,048,576 chance per
-such coincidence. If you need cross-machine uniqueness at high sustained
-rates, use a coordinated or longer ID (xid, uuid).
+      go run ./eval/uniqcheck -count 2000000 -goroutines 20
+      # Total IDs: 40,000,000  ts+seq dupes: 0  full-ID dupes: 0  ordering violations: 0
 
-### Capacity and timestamp drift
+  Or, without building anything, a quick single-threaded check with
+  standard command-line tools:
 
-An ID's uniqueness is carried entirely by the timestamp+sequence pair: 4,096
-sequence slots per millisecond, or a sustained capacity of ~4.1 million IDs
-per second, per process.
-
-A clock reading derives the sequence from the fractional nanoseconds at 256ns
-granularity, yielding values 0-3906; the remaining slots up to 4095 are headroom
-consumed under load before the sequence borrows into the next millisecond.
-
-Generation bursts exceeding ~4.1M IDs/s, trivially reached by benchmarks
-but rarely by applications, push the internal clock ahead of real time: each
-second of full-rate generation consumes several seconds of timestamp space,
-and the embedded timestamps lead the wall clock until generation slows and real
-time catches up. Nothing about uniqueness or ordering is affected; IDs remain
-strictly k-sortable in generation order at any rate. The practical guidance: kid
-is a good fit for systems that treat the embedded time as approximate metadata,
-and a poor fit for systems that require ID timestamps to be exact wall-clock
-instants under extreme generation rates.
-
-### For the doubtful
-
-The race detector verifies concurrent generation analytically (ordering and
-ts+seq uniqueness across goroutines):
-
-    go test -race -run TestNewUniqueParallel -count=20 .
-
-Fuzzing hammers the decode paths:
-
-    go test -fuzz '^FuzzParse$'         -fuzztime 60s .
-    go test -fuzz '^FuzzUnmarshalJSON$' -fuzztime 60s .
-    go test -fuzz '^FuzzFromBytes$'     -fuzztime 60s .
-
-And uniqcheck brute-forces the uniqueness and ordering guarantees under
-real contention — one large run, then a burst loop whose oversubscribed
-goroutines explore scheduler interleavings a single run never hits:
-
-    go run ./eval/uniqcheck -count 4000000 -goroutines 32
-    for i in $(seq 1 20); do go run ./eval/uniqcheck -count 500000 -goroutines 64 || break; done
-
-uniqcheck holds every generated ID in memory (~10 bytes each) for post-hoc
-verification; size count x goroutines to available RAM.
+      go install github.com/mwyvr/kid/v2/cmd/kid@latest
+      kid -c 2000000 | sort | uniq -d
+      # no output means no duplicates
 
 ## CLI
 
