@@ -236,11 +236,11 @@ comparison on Linux amd64 and macOS arm64 including the stdlib uuid
     ❯ go1.27.1 test -cpu 1,2,4,8,16,32 -test.benchmem -bench .
     goos: linux
     goarch: amd64
-    pkg: github.com/mwyvr/kid/eval/bench
+    pkg: github.com/mwyvr/kid/v2/eval/bench
     cpu: Intel(R) Core(TM) i9-14900K
-    BenchmarkKid                    33479890                29.90 ns/op            0 B/op          0 allocs/op
-    BenchmarkKid-2                  37299408                30.42 ns/op            0 B/op          0 allocs/op
-    BenchmarkKid-4                  39092158                34.42 ns/op            0 B/op          0 allocs/op
-    BenchmarkKid-8                  37107082                35.16 ns/op            0 B/op          0 allocs/op
-    BenchmarkKid-16                 32040319                37.40 ns/op            0 B/op          0 allocs/op
-    BenchmarkKid-32                 48334761                24.43 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid                    39246956                30.24 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid-2                  40488458                28.21 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid-4                  36920178                32.40 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid-8                  36412285                32.19 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid-16                 34016721                35.04 ns/op            0 B/op          0 allocs/op
+    BenchmarkKid-32                 52991698                21.57 ns/op            0 B/op          0 allocs/op
