@@ -367,7 +367,7 @@ func TestID_UnmarshalText(t *testing.T) {
 		{ // 0000000000000000 ts:0 seq:   0 rnd:    0 1970-01-01 00:00:00 +0000 UTC ID{  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0 }
 			"valid_zero", "0000000000000000", ID{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, false,
 		},
-		{ // zzzzzzzzzzzzzzzz ts:281474976710655 seq:65535 rnd:65535 10889-08-02 05:31:50.655 +0000 UTC ID{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }
+		{ // zzzzzzzzzzzzzzzz ts:281474976710655 seq:4095 rnd:1048575 10889-08-02 05:31:50.655 +0000 UTC ID{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }
 			"valid_max", "zzzzzzzzzzzzzzzz", ID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, false,
 		},
 		{"invalid chars", "000000000000000u", ZeroID, true},
@@ -428,6 +428,38 @@ func TestIDMarshalText(t *testing.T) {
 	}
 }
 
+func TestIDAppendText(t *testing.T) {
+	id := ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}
+	// a non-empty, non-zero-capacity prefix proves this appends rather
+	// than overwrites or ignores b.
+	prefix := []byte("id=")
+	b, err := id.AppendText(prefix)
+	if err != nil {
+		t.Fatalf("AppendText() error = %v, want nil", err)
+	}
+	if got, want := string(b), "id=06bprg666xzm7hpg"; got != want {
+		t.Errorf("AppendText() = %s, want %s", got, want)
+	}
+	// the original prefix slice's contents must be untouched
+	if got, want := string(prefix), "id="; got != want {
+		t.Errorf("AppendText() mutated its argument: prefix = %s, want %s", got, want)
+	}
+	// nil b, nil ID
+	b, err = ZeroID.AppendText(nil)
+	if err != nil {
+		t.Fatalf("ZeroID.AppendText(nil) error = %v, want nil", err)
+	}
+	if got, want := string(b), "0000000000000000"; got != want {
+		t.Errorf("ZeroID.AppendText(nil) = %s, want %s", got, want)
+	}
+	// must agree with MarshalText for the same ID
+	want, _ := id.MarshalText()
+	got, _ := id.AppendText(nil)
+	if !bytes.Equal(got, want) {
+		t.Errorf("AppendText(nil) = %s, want %s (MarshalText)", got, want)
+	}
+}
+
 func TestFromBytes_Invariant(t *testing.T) {
 	want := New()
 	got, err := FromBytes(want.Bytes())
@@ -444,6 +476,77 @@ func TestFromBytes_Invariant(t *testing.T) {
 	}
 	if err == nil {
 		t.Fatal(err)
+	}
+}
+
+func TestIDMarshalBinary(t *testing.T) {
+	id := ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}
+	b, err := id.MarshalBinary()
+	if err != nil {
+		t.Fatalf("MarshalBinary() error = %v, want nil", err)
+	}
+	if !bytes.Equal(b, id[:]) {
+		t.Errorf("MarshalBinary() = %v, want %v", b, id[:])
+	}
+	// must be a copy: mutating the result must not alter id
+	b[0] = 0xff
+	if id[0] == 0xff {
+		t.Error("MarshalBinary() did not return a copy")
+	}
+	// unlike Value/ValueBinary, MarshalBinary has no ZeroID special case:
+	// it always returns the 10 raw bytes, even all-zero ones.
+	b, err = ZeroID.MarshalBinary()
+	if err != nil {
+		t.Fatalf("ZeroID.MarshalBinary() error = %v, want nil", err)
+	}
+	if !bytes.Equal(b, ZeroID[:]) {
+		t.Errorf("ZeroID.MarshalBinary() = %v, want %v", b, ZeroID[:])
+	}
+}
+
+func TestIDAppendBinary(t *testing.T) {
+	id := ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}
+	prefix := []byte{0xaa, 0xbb}
+	b, err := id.AppendBinary(prefix)
+	if err != nil {
+		t.Fatalf("AppendBinary() error = %v, want nil", err)
+	}
+	want := append([]byte{0xaa, 0xbb}, id[:]...)
+	if !bytes.Equal(b, want) {
+		t.Errorf("AppendBinary() = %v, want %v", b, want)
+	}
+	// the original prefix slice's contents must be untouched
+	if !bytes.Equal(prefix, []byte{0xaa, 0xbb}) {
+		t.Errorf("AppendBinary() mutated its argument: prefix = %v", prefix)
+	}
+	// must agree with MarshalBinary for the same ID
+	wantMB, _ := id.MarshalBinary()
+	gotAB, _ := id.AppendBinary(nil)
+	if !bytes.Equal(gotAB, wantMB) {
+		t.Errorf("AppendBinary(nil) = %v, want %v (MarshalBinary)", gotAB, wantMB)
+	}
+}
+
+func TestIDUnmarshalBinary(t *testing.T) {
+	want := ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}
+	data, err := want.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got ID
+	if err := got.UnmarshalBinary(data); err != nil {
+		t.Fatalf("UnmarshalBinary() error = %v, want nil", err)
+	}
+	if got != want {
+		t.Errorf("UnmarshalBinary() = %v, want %v", got, want)
+	}
+	// invalid length resets to ZeroID and returns ErrInvalidID
+	got = want // pre-fill with a non-zero value so the reset is exercised
+	if err := got.UnmarshalBinary([]byte{0x1, 0x2}); err != ErrInvalidID {
+		t.Errorf("UnmarshalBinary(short) error = %v, want %v", err, ErrInvalidID)
+	}
+	if got != ZeroID {
+		t.Errorf("UnmarshalBinary(short) left id = %v, want ZeroID", got)
 	}
 }
 
@@ -747,28 +850,6 @@ func BenchmarkUnmarshalJSON(b *testing.B) {
 	benchResultID = r
 }
 
-// examples
-func ExampleNew() {
-	id := New()
-	fmt.Printf(`ID:
-    String()    %s
-    Timestamp() %d
-    Sequence()  %d
-    Random()    %d
-    Time()      %v
-    Bytes()     %3v
-`, id.String(), id.Timestamp(), id.Sequence(), id.Random(), id.Time().UTC(), id.Bytes())
-}
-
-func ExampleParse() {
-	id, err := Parse("03f6nlxczw0018fz")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(id.Timestamp(), id.Random())
-	// Output: 946684799999 41439
-}
-
 // resetClock saves and restores the getTS globals so clock-manipulating
 // tests leave the package in its original state. Tests using this must not
 // run in parallel.
@@ -896,4 +977,26 @@ func TestNewUniqueParallel(t *testing.T) {
 			t.Fatalf("duplicate ts+seq across goroutines: %v / %v", all[i-1], all[i])
 		}
 	}
+}
+
+// examples
+func ExampleNew() {
+	id := New()
+	fmt.Printf(`ID:
+    String()    %s
+    Timestamp() %d
+    Sequence()  %d
+    Random()    %d
+    Time()      %v
+    Bytes()     %3v
+`, id.String(), id.Timestamp(), id.Sequence(), id.Random(), id.Time().UTC(), id.Bytes())
+}
+
+func ExampleParse() {
+	id, err := Parse("03f6nlxczw0018fz")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(id.Timestamp(), id.Random())
+	// Output: 946684799999 41439
 }
