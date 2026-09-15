@@ -75,7 +75,7 @@ func decodeIDs(vals []string) int {
 	for _, arg := range vals {
 		id, err := kid.Parse(arg)
 		if err != nil {
-			fmt.Printf("[%s] %s\n", arg, err)
+			fmt.Fprintf(os.Stderr, "[%s] %s\n", arg, err)
 			failed = true
 			continue
 		}
