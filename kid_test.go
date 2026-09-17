@@ -250,6 +250,9 @@ func TestIDComponents(t *testing.T) {
 				if got, want := v.id.Timestamp(), v.ts; got != want {
 					t.Errorf("Timestamp() = %v, want %v", got, want)
 				}
+				if got, want := v.id.Sequence(), v.seq; got != want {
+					t.Errorf("Sequence() = %v, want %v", got, want)
+				}
 				if got, want := v.id.Random(), v.random; got != want {
 					t.Errorf("Random() = %v, want %v", got, want)
 				}
@@ -345,7 +348,7 @@ func TestParseInvalid(t *testing.T) {
 		t.Errorf("Parse(062ez870acdtzd2y3qajilou - invalid chars) err=%v, want %v", err, ErrInvalidID)
 	}
 	if id != ZeroID {
-		t.Errorf("Parse() =%v, there want %v", id, ZeroID)
+		t.Errorf("Parse() = %v, want %v", id, ZeroID)
 	}
 }
 
@@ -394,10 +397,10 @@ func TestID_UnmarshalText(t *testing.T) {
 	}
 	id := ID{}
 	if err := id.UnmarshalText([]byte("decafebad")); err != ErrInvalidID {
-		t.Errorf("ID.UnmarshalText(\"foo\" got: %v, want err", err)
+		t.Errorf("ID.UnmarshalText(%q) err = %v, want %v", "decafebad", err, ErrInvalidID)
 	}
-	if err := id.UnmarshalText([]byte("decafebad")); err != nil && !id.IsNil() {
-		t.Errorf("ID.UnmarshalText(\"foo\") got: %v, want %v", id, ZeroID)
+	if id != ZeroID {
+		t.Errorf("ID.UnmarshalText(%q) = %v, want %v", "decafebad", id, ZeroID)
 	}
 }
 
