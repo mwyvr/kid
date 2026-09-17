@@ -1,5 +1,50 @@
 # Change Log
 
+## v2.1.1 (2026-09-17)
+
+### Fixed
+
+- `getTS()` derived milli/seq via `time.Time.UnixNano()`, whose int64 range
+  is documented as undefined past ~year 2262 — far short of the ID format's
+  own ~10889 ceiling, and short of what `NewWithTime()` (which already used
+  `UnixMilli()`+`Nanosecond()`) could reach. Switched `getTS()` to the same
+  derivation `NewWithTime()` already used; TestGetTSPastUnixNanoRange` confirms.
+- `TestNewUniqueParallel` and `eval/uniqcheck` both detected duplicate ts+seq
+  pairs by comparing the first 8 bytes of sorted IDs. Under v2's bit packing,
+  that actually requires 4 bits of coincidental random agreement beyond a
+  genuine collision to ever fire — stricter than what the check's own name and
+  message claimed. Both now compare `Timestamp()`/`Sequence()` directly.
+- `TestNewRandomVaries` accepted `≥2` distinct random values across 20 draws,
+  which would still pass for a badly degraded RNG (e.g. stuck alternating
+  between two values). Strengthened to require full uniqueness across the batch;
+  verified negligible flake risk via the birthday bound and 20 repeated `-race`
+  runs.
+
+### Docs
+
+- `ZeroID`'s null-handling policy stated in one place: JSON and SQL have
+  a native null and ZeroID marshals to it; text and binary don't, so it
+  encodes as its natural zero form. The `*ID`/JSON-null pointer behavior
+  is now explicitly attributed to `encoding/json` itself, not to kid.
+- `Scan`'s doc now states its reset-to-ZeroID behavior, matching every
+  other `Unmarshal`-family method; `NewWithTime`'s doc no longer implies
+  its sequence is derived "as in New," which overstated the similarity.
+
+### Test
+
+- Fixed a test comment claiming `l` is omitted from the encoding
+  alphabet (it isn't — only `a, i, o, u` are).
+- Removed a vacuous always-true guard in `TestIDMarshalJSON`.
+- `TestNewWithTime` no longer re-derives its expected sequence with the
+  implementation's own formula, which couldn't have caught a bug in that
+  formula; replaced with an independently-computed value.
+- `Scan`'s error-path test now covers `float64` alongside `int`.
+- Fixed a stale `Scan("")` message on a test that actually calls
+  `Scan(nil)`.
+- `UnmarshalBinary` now tested with a too-long input, not just
+  too-short; `AppendBinary` now tested with a `nil` prefix.
+- `cmd/kid`: dropped a stray trailing space in the byte-dump format.
+
 ## v2.1.0
 
 ### Removed, a little late
