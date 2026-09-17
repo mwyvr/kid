@@ -1,10 +1,9 @@
 // Command uniqcheck verifies, under concurrent load, the two guarantees made
 // by kid.New:
 //
-//  1. Uniqueness: no two calls ever return the same ID. Specifically, the
-//     timestamp+sequence (the leading 8 bytes) must never repeat — that is
-//     the guarantee getTS makes, independent of the two trailing random
-//     bytes. Full-ID duplicates are reported separately.
+//  1. Uniqueness: no two calls ever return the same timestamp+sequence —
+//     that is the guarantee getTS makes, independent of the trailing
+//     randomness. Full-ID duplicates are reported separately.
 //  2. Ordering: within any single goroutine, each call to New returns an ID
 //     that sorts after the one before it.
 //
@@ -12,7 +11,7 @@
 // preallocated slice, so New experiences genuine concurrent contention
 // rather than being serialized behind a checker mutex. Verification is
 // post-hoc: all IDs are merged, sorted, and scanned for adjacent duplicate
-// timestamp+sequence prefixes, which detects a repeat no matter when, or on
+// timestamp+sequence values, which detects a repeat no matter when, or on
 // which goroutine, the two colliding IDs were produced.
 //
 // Memory: IDs are 10 bytes each; the defaults (4 goroutines x 1,000,000)
@@ -31,7 +30,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -90,7 +88,7 @@ func main() {
 		ordering += v
 	}
 	for i := 1; i < len(all); i++ {
-		if bytes.Equal(all[i-1][:8], all[i][:8]) {
+		if all[i-1].Timestamp() == all[i].Timestamp() && all[i-1].Sequence() == all[i].Sequence() {
 			tsSeqDupes++
 			if all[i-1] == all[i] {
 				fullDupes++
