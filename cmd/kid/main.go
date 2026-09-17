@@ -80,7 +80,7 @@ func decodeIDs(vals []string) int {
 			continue
 		}
 
-		fmt.Printf("%s ts:%d seq:%4d rnd:%7d %s ID{%s }\n", arg,
+		fmt.Printf("%s ts:%d seq:%4d rnd:%7d %s ID{%s}\n", arg,
 			id.Timestamp(), id.Sequence(), id.Random(), id.Time(), asHex(id.Bytes()))
 	}
 	if failed {
