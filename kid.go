@@ -14,7 +14,10 @@ derive the same timestamp+sequence are separated only by the 20 random bits
 cross-machine uniqueness is required.
 
 [ZeroID] is both the nil sentinel and a valid, decodable ID. A JSON null
-into a *ID nils the pointer without calling UnmarshalJSON.
+into a *ID nils the pointer without calling UnmarshalJSON — encoding/json's
+own rule for any pointer type, not kid's. ZeroID marshals to a JSON null
+and a SQL NULL, both of which have a native null; text and binary encode
+it as their natural zero form, since neither does.
 
 ID implements TextMarshaler/TextUnmarshaler, TextAppender/BinaryAppender,
 BinaryMarshaler/BinaryUnmarshaler, json.Marshaler/json.Unmarshaler, and
