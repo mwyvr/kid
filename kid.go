@@ -423,10 +423,13 @@ const nanoPerMilli = 1000000
 // every (milli << 12 + seq) is strictly greater than any previous one, even
 // if the wall clock steps backwards, with no retry loop.
 func getTS() (milli, seq uint64) {
-	nano := timeNow().UnixNano()
-	m := nano / nanoPerMilli
+	// milli/sub via UnixMilli+Nanosecond, not UnixNano: UnixNano's int64
+	// range is documented as undefined past ~year 2262, well short of what
+	// the ID format and NewWithTime both support (~year 10889).
+	t := timeNow()
+	m := t.UnixMilli()
 	// seq is 0-3906 clock-derived; the increment path can return up to 4095
-	s := (nano - m*nanoPerMilli) >> 8
+	s := (int64(t.Nanosecond()) % nanoPerMilli) >> 8
 	milli, seq = uint64(m), uint64(s)
 	now := milli<<12 + seq
 	if last := lastTime.Load(); now > last && lastTime.CompareAndSwap(last, now) {

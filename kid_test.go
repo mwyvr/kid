@@ -132,7 +132,10 @@ func TestNewWithTime(t *testing.T) {
 	if got, want := id.Timestamp(), tm.UnixMilli(); got != want {
 		t.Errorf("Timestamp = %d, want %d", got, want)
 	}
-	if got, want := id.Sequence(), uint16((int64(tm.Nanosecond())%nanoPerMilli)>>8); got != want {
+	// 1781 = (123_456_000 % nanoPerMilli) >> 8, computed independently of
+	// the implementation's own formula so a bug in that formula would
+	// actually be caught here.
+	if got, want := id.Sequence(), uint16(1781); got != want {
 		t.Errorf("Sequence = %d, want %d", got, want)
 	}
 	if got := id.Time().UTC(); !got.Equal(tm.Truncate(time.Millisecond)) {
@@ -269,14 +272,19 @@ func TestIDComponents(t *testing.T) {
 // TestNewRandomVaries confirms the random component is actually drawing
 // entropy, not just that ts+seq never collides (TestNewUnique/TestSequence
 // cover that separately, and would pass even if Random() were stuck).
+// Requires full uniqueness across n draws, not merely >1 distinct value, so
+// a degraded RNG (e.g. stuck alternating between two values) actually
+// fails this; at n=20 over a 20-bit space the false-failure rate from a
+// genuinely working RNG is ~0.018% (birthday bound), negligible for a test
+// that runs on every CI invocation.
 func TestNewRandomVaries(t *testing.T) {
 	const n = 20
 	seen := make(map[uint32]struct{}, n)
 	for range n {
 		seen[New().Random()] = struct{}{}
 	}
-	if len(seen) < 2 {
-		t.Errorf("Random() did not vary across %d calls to New()", n)
+	if len(seen) != n {
+		t.Errorf("Random() produced only %d distinct values across %d calls to New()", len(seen), n)
 	}
 }
 
@@ -361,7 +369,7 @@ func TestParseInvalid(t *testing.T) {
 	if err != ErrInvalidID {
 		t.Errorf("Parse(invalid length) err=%v, want %v", err, ErrInvalidID)
 	}
-	id, err := Parse("062ez870acdtzd2y3qajilou") // i, l, o, u never in our IDs
+	id, err := Parse("062ez870acdtzd2y3qajilou") // i, o, u never in our IDs
 	if err != ErrInvalidID {
 		t.Errorf("Parse(062ez870acdtzd2y3qajilou - invalid chars) err=%v, want %v", err, ErrInvalidID)
 	}
@@ -532,6 +540,10 @@ func TestIDAppendBinary(t *testing.T) {
 	if !bytes.Equal(prefix, []byte{0xaa, 0xbb}) {
 		t.Errorf("AppendBinary() mutated its argument: prefix = %v", prefix)
 	}
+	// nil prefix
+	if b, err := id.AppendBinary(nil); err != nil || !bytes.Equal(b, id[:]) {
+		t.Errorf("AppendBinary(nil) = %v, %v, want %v, nil", b, err, id[:])
+	}
 	// must agree with MarshalBinary for the same ID
 	wantMB, _ := id.MarshalBinary()
 	gotAB, _ := id.AppendBinary(nil)
@@ -561,6 +573,13 @@ func TestIDUnmarshalBinary(t *testing.T) {
 	if got != ZeroID {
 		t.Errorf("UnmarshalBinary(short) left id = %v, want ZeroID", got)
 	}
+	got = want
+	if err := got.UnmarshalBinary(append(data, 0x0)); err != ErrInvalidID {
+		t.Errorf("UnmarshalBinary(long) error = %v, want %v", err, ErrInvalidID)
+	}
+	if got != ZeroID {
+		t.Errorf("UnmarshalBinary(long) left id = %v, want ZeroID", got)
+	}
 }
 
 type jsonType struct {
@@ -574,7 +593,7 @@ func TestIDMarshalJSON(t *testing.T) {
 	if err != nil {
 		t.Error("id.MarshalJSON()", err)
 	}
-	if id == ZeroID && !reflect.DeepEqual(string(got), "null") {
+	if string(got) != "null" {
 		t.Errorf("got: %v, want: \"null\"", string(got))
 	}
 	// 06bprg666xzm7hpg ts:1741277677111 seq:32579 rnd:49871 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
@@ -673,7 +692,7 @@ func TestIDDriverScan(t *testing.T) {
 	id = ID{}
 	err = id.Scan(nil)
 	if err != nil || id != ZeroID {
-		t.Errorf("ZeroID.Scan(\"\") should return nil err, ZeroID. got: %v %v", err, id)
+		t.Errorf("ZeroID.Scan(nil) should return nil err, ZeroID. got: %v %v", err, id)
 	}
 }
 
@@ -681,6 +700,9 @@ func TestIDDriverScanError(t *testing.T) {
 	id := ID{}
 
 	if got, want := id.Scan(0), errors.New("kid: scanning unsupported type: int"); got.Error() != want.Error() {
+		t.Errorf("Scan() err=%v, want %v", got, want)
+	}
+	if got, want := id.Scan(0.0), errors.New("kid: scanning unsupported type: float64"); got.Error() != want.Error() {
 		t.Errorf("Scan() err=%v, want %v", got, want)
 	}
 	if got, want := id.Scan("0"), ErrInvalidID; got != want {
@@ -933,6 +955,25 @@ func TestGetTSBurstMonotonic(t *testing.T) {
 			t.Fatalf("call %d: ts+seq not strictly increasing (%d <= %d)", i, now, prev)
 		}
 		prev = now
+	}
+}
+
+// TestGetTSPastUnixNanoRange verifies getTS remains correct for dates
+// beyond ~year 2262, where time.Time.UnixNano's int64 range is documented
+// as undefined — well short of what the ID format (~10889) and
+// NewWithTime both support. getTS must derive milli/seq via UnixMilli and
+// Nanosecond, not UnixNano; this pins that choice against regression.
+func TestGetTSPastUnixNanoRange(t *testing.T) {
+	resetClock(t)
+
+	future := time.Date(3000, 1, 1, 0, 0, 0, 123_456_000, time.UTC)
+	timeNow = func() time.Time { return future }
+
+	milli, seq := getTS()
+	wantMilli := uint64(future.UnixMilli())
+	wantSeq := uint64(123_456_000 % nanoPerMilli >> 8) // 1781
+	if milli != wantMilli || seq != wantSeq {
+		t.Errorf("getTS() at year 3000 = (%d, %d), want (%d, %d)", milli, seq, wantMilli, wantSeq)
 	}
 }
 
