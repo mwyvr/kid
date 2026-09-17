@@ -39,6 +39,11 @@ byte:    0    1    2    3    4    5    6    7    8    9
 
 Max date at 48 bits: 10889-08-02.
 
+`New()`/`getTS()` derive milli and the sub-millisecond fraction via
+`UnixMilli()` + `Nanosecond()`, not `UnixNano()`: `UnixNano()`'s int64
+range is documented as undefined past ~year 2262, far short of the format's
+own 10889 ceiling.
+
 ## Why 12+20, not 16+16
 
 kid v2 decodes, compares, sorts, and round-trips v1 IDs correctly; only
