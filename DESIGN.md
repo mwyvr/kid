@@ -1,26 +1,18 @@
 # Design notes
 
-_See [CHANGELOG.md](CHANGELOG.md) for what changed release to release._
+See [CHANGELOG.md](CHANGELOG.md) for what changed release to release.
 
 ## Design objectives
 
-- Short, URL-safe and K-sortable: encoded and binary forms sort identically, in generation order.
-- Encoding uses a single case and is resistant to accidental rudeness
+- Short and URL-safe: shorter than [rs/xid](https://github.com/rs/xid) or uuid,
+  trading away cross-machine coordination and cryptographic unguessability to
+  get there.
+- K-sortable: encoded and binary forms sort identically, in generation order.
 - No dependencies outside the standard library.
-- Performant: Lock-free, allocation-free generation that scales with cores.
+- Lock-free, allocation-free generation that scales with cores.
 - Uniqueness is structural, not probabilistic: per-process, from a single
   atomic counter.
 - Small enough to read start to finish in one sitting.
-
-Non-objectives:
-
-- global uniqueness, kid does not aspire to reach cross-machine coordination and
-  cryptographic unguessability to get there.
-
-Example kid ID:
-
-    encoded: 06hbdg48wytbs1ln
-    binary:  ID{  0x1, 0xa0, 0xa6, 0x3c, 0x88, 0xe7, 0xb4, 0xac, 0x86, 0x75 }
 
 ## Byte layout
 
@@ -60,10 +52,6 @@ of. v2 reclaims those 4 bits as randomness, raising cross-process collision
 resistance from 16 random bits (1 in 65,536) to 20 (1 in 1,048,576), at no cost
 to k-sortability: the sequence stays in the higher, more significant bits of the
 shared field.
-
-## Encoding
-
-A custom alphabet lacking all vowels except for "e" is used for Base32 encoding.
 
 ## Uniqueness
 

@@ -1,64 +1,32 @@
 /*
 Package kid generates short, URL-safe, k-sortable unique IDs.
 
-An ID is 10 bytes: a 48-bit Unix millisecond timestamp, followed by a
-32-bit field holding a 12-bit sequence and 20 bits of randomness, packed
-so the sequence remains more significant than the randomness for correct
-ordering. Base32-encoded with a lowercase alphabet that omits a, i, o, and u,
-an ID is a 16-character URL-friendly string. The alphabet is in ascending
-ASCII order, so encoded IDs sort the same as their binary form. Decoding is
-case-sensitive: uppercase input is rejected.
+An ID is 10 bytes: a 48-bit Unix millisecond timestamp, a 12-bit sequence,
+and 20 bits of randomness (see DESIGN.md for the byte layout). Base32-encoded
+with a lowercase alphabet, in ascending ASCII order, that omits a, i, o,
+and u, an ID is a 16-character URL-friendly string that sorts the same as
+its binary form. Decoding is case-sensitive: uppercase input is rejected.
 
-New is goroutine-safe and lock-free. The timestamp+sequence is unique and
-strictly increasing within a process, even if the wall clock steps backwards.
-Sustained capacity is 4,096 IDs per millisecond per process; bursts beyond
-that borrow sequence slots from future milliseconds, so IDs stay unique and
-sortable but their embedded timestamps lead the wall clock until generation
-slows.
+See [New] for the uniqueness and ordering guarantees. Uniqueness is per
+process: across processes there is no coordination, and two processes that
+derive the same timestamp+sequence are separated only by the 20 random bits
+(1 in 1,048,576). Use a coordinated or longer ID (xid, uuid) where
+cross-machine uniqueness is required.
 
-Uniqueness is per process. Across processes there is no coordination; two
-processes that derive the same timestamp+sequence are separated only by the
-20 random bits (1 in 1,048,576). Use a coordinated or longer ID (xid, uuid)
-where cross-machine uniqueness is required.
-
-The zero value, ZeroID, is both the nil sentinel (IsZero) and a valid,
-decodable ID: Parse("0000000000000000") decodes to it. A JSON null into
-a *ID nils the pointer without calling UnmarshalJSON.
+[ZeroID] is both the nil sentinel and a valid, decodable ID. A JSON null
+into a *ID nils the pointer without calling UnmarshalJSON.
 
 ID implements TextMarshaler/TextUnmarshaler, TextAppender/BinaryAppender,
 BinaryMarshaler/BinaryUnmarshaler, json.Marshaler/json.Unmarshaler, and
 database/sql driver.Valuer and sql.Scanner.
 
 Security note: an ID carries only 20 bits of randomness alongside values
-derived from the clock; IDs are predictable by design. Do not use them where
-unguessability matters, such as session tokens, API keys, or password reset
-codes.
+derived from the clock; IDs are predictable by design. Do not use them
+where unguessability matters, such as session tokens, API keys, or
+password reset codes.
 
-Example usage:
-
-	func main() {
-		id := kid.New()
-		fmt.Printf("%s %03v\n", id, id[:])
-		// Example output: 06bq7xhnr03mlz6r [001 149 115 246 021 192 007 073 252 216]
-
-		id, err := kid.Parse("06bq7xhnr03mlz6r")
-		if err != nil {
-			// handle the error
-		}
-		fmt.Printf("%s %03v\n", id, id[:])
-		// Output: 06bq7xhnr03mlz6r [001 149 115 246 021 192 007 073 252 216]
-	}
-
-Acknowledgments:
-
-The API borrows from github.com/rs/xid, and the ts+seq lock-free claim in
-getTS derives from google/uuid's getV7Time() algorithm, with its mutex
-replaced by a lock-free atomic claim. The sequence/randomness packing within
-the ID's trailing 4 bytes is kid's own: v1 ported getV7Time()'s bit widths
-directly, which left 4 bits of every generated ID always zero (a constraint
-inherited from UUIDv7's version nibble, which kid's own layout has no need
-of); v2 reclaims them as randomness instead. Third-party license texts are
-in NOTICES.
+The API borrows from github.com/rs/xid. See DESIGN.md for the byte layout
+and its history, and NOTICES for third-party license texts.
 */
 package kid
 
@@ -74,7 +42,10 @@ import (
 	"time"
 )
 
-// ID represents a unique identifier
+// ID represents a unique identifier.
+//
+// ID is a 10-byte array, small enough to pass and return by value; this is
+// deliberate, not an oversight, and keeps IDs off the heap in typical use.
 type ID [rawLen]byte
 
 const (
@@ -124,7 +95,7 @@ func New() (id ID) {
 }
 
 // NewWithTime generates a new ID with the given timestamp. The sequence is
-// derived from t's sub-millisecond component, as in New.
+// derived from t's sub-millisecond component.
 //
 // NewWithTime does not draw from New's monotonic sequence, so its IDs are
 // not ordered with respect to New() output and ts+seq uniqueness against
@@ -150,12 +121,9 @@ const (
 	randMask = 1<<randBits - 1 // 0xFFFFF: low 20 bits
 )
 
-// buildID lays out milli (48 bits) into the first 6 bytes, then packs seq
-// (12 bits) and 20 bits of randomness into the trailing 4 bytes as a single
-// big-endian field with seq in the high bits, so seq remains more
-// significant than the randomness for k-sortability (see the package doc's
-// Acknowledgments for why the two share a field rather than each getting a
-// clean byte range). Callers must keep milli and seq in range.
+// buildID lays out milli in the first 6 bytes, then seq and randomness in
+// the trailing 4 bytes (see DESIGN.md for the layout). Callers must keep
+// milli and seq in range.
 func buildID(milli, seq uint64) (id ID) {
 	// timestamp, 6 bytes, big endian
 	id[0] = byte(milli >> 40)
@@ -164,8 +132,8 @@ func buildID(milli, seq uint64) (id ID) {
 	id[3] = byte(milli >> 16)
 	id[4] = byte(milli >> 8)
 	id[5] = byte(milli)
-	// seq (high, more significant) | randomness (low); IDs are predictable
-	// by design, see the package doc's security note.
+	// seq in the high bits, randomness in the low bits, so seq stays more
+	// significant than the randomness for k-sortability.
 	rnd := mrand.Uint32() & randMask
 	combined := uint32(seq)<<randBits | rnd
 	id[6] = byte(combined >> 24)
@@ -338,8 +306,8 @@ func (id ID) ValueBinary() (driver.Value, error) {
 
 // Scan implements sql.Scanner, accepting the encoded form as a string or
 // []byte, the 10-byte binary form as a []byte, or nil, which yields ZeroID.
-// The binary form can only be read through Scan; use ValueBinary to write
-// it.
+// On any other input, id is reset to ZeroID and an error is returned. The
+// binary form can only be read through Scan; use ValueBinary to write it.
 func (id *ID) Scan(value any) error {
 	switch val := value.(type) {
 	case string:
