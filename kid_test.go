@@ -221,6 +221,10 @@ func TestID_IsZero(t *testing.T) {
 	if !id.IsZero() {
 		t.Errorf("ID.IsZero() = %v, want %v", id.IsZero(), true)
 	}
+	id = New()
+	if id.IsZero() {
+		t.Errorf("ID.IsZero() = %v, want %v", id.IsZero(), false)
+	}
 }
 
 func TestInvalid(t *testing.T) {
@@ -262,6 +266,20 @@ func TestIDComponents(t *testing.T) {
 }
 
 // ensure sequencing produces unique ts+seq combos
+// TestNewRandomVaries confirms the random component is actually drawing
+// entropy, not just that ts+seq never collides (TestNewUnique/TestSequence
+// cover that separately, and would pass even if Random() were stuck).
+func TestNewRandomVaries(t *testing.T) {
+	const n = 20
+	seen := make(map[uint32]struct{}, n)
+	for range n {
+		seen[New().Random()] = struct{}{}
+	}
+	if len(seen) < 2 {
+		t.Errorf("Random() did not vary across %d calls to New()", n)
+	}
+}
+
 func TestSequence(t *testing.T) {
 	var (
 		lastTS  int64
