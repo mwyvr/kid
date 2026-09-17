@@ -968,7 +968,7 @@ func TestNewUniqueParallel(t *testing.T) {
 	}
 	Sort(all)
 	for i := 1; i < len(all); i++ {
-		if bytes.Equal(all[i-1][:8], all[i][:8]) {
+		if all[i-1].Timestamp() == all[i].Timestamp() && all[i-1].Sequence() == all[i].Sequence() {
 			t.Fatalf("duplicate ts+seq across goroutines: %v / %v", all[i-1], all[i])
 		}
 	}
