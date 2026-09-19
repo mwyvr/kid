@@ -92,7 +92,7 @@ func init() {
 // increment under contention. Every call returns an ID whose timestamp +
 // sequence is strictly greater than the previously generated one, even if
 // the wall clock steps backwards (see getTS).
-func New() (id ID) {
+func New() ID {
 	t, s := getTS()
 	return buildID(t, s)
 }
@@ -379,8 +379,9 @@ func (id ID) Time() time.Time {
 }
 
 // Sequence returns the sequence component of id: the high seqBits (12)
-// bits of the trailing 4-byte field. For IDs from New this is 0-4095;
-// overflow within a millisecond carries into the timestamp (see getTS).
+// bits of the trailing 4-byte field. For IDs from New this is 0-3906
+// under normal clock-derived generation; the increment path can reach
+// 4095 under contention, carrying overflow into the timestamp (see getTS).
 func (id ID) Sequence() uint16 {
 	return uint16(binary.BigEndian.Uint32(id[6:10]) >> randBits)
 }
