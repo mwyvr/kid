@@ -96,9 +96,9 @@ func isTerminal(f *os.File) bool {
 }
 
 func asHex(b []byte) string {
-	s := []string{}
+	var s []string
 	for _, v := range b {
-		s = append(s, fmt.Sprintf(" %#4x", v))
+		s = append(s, fmt.Sprintf(" %#02x", v))
 	}
 
 	return strings.Join(s, ",")
