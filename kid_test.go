@@ -288,6 +288,25 @@ func TestNewRandomVaries(t *testing.T) {
 	}
 }
 
+// TestNewWithTimeRandomVaries is TestNewRandomVaries's counterpart for
+// NewWithTime: even with an identical timestamp, the random component
+// must still vary, since it isn't derived from t.
+func TestNewWithTimeRandomVaries(t *testing.T) {
+	const n = 20
+	fixed := time.UnixMilli(1741456227758)
+	seen := make(map[uint32]struct{}, n)
+	for range n {
+		id, err := NewWithTime(fixed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		seen[id.Random()] = struct{}{}
+	}
+	if len(seen) != n {
+		t.Errorf("Random() produced only %d distinct values across %d calls to NewWithTime", len(seen), n)
+	}
+}
+
 func TestSequence(t *testing.T) {
 	var (
 		lastTS  int64
@@ -523,6 +542,9 @@ func TestIDMarshalBinary(t *testing.T) {
 	if !bytes.Equal(b, ZeroID[:]) {
 		t.Errorf("ZeroID.MarshalBinary() = %v, want %v", b, ZeroID[:])
 	}
+	if got := ZeroID.Bytes(); !bytes.Equal(got, ZeroID[:]) {
+		t.Errorf("ZeroID.Bytes() = %v, want %v", got, ZeroID[:])
+	}
 }
 
 func TestIDAppendBinary(t *testing.T) {
@@ -543,6 +565,10 @@ func TestIDAppendBinary(t *testing.T) {
 	// nil prefix
 	if b, err := id.AppendBinary(nil); err != nil || !bytes.Equal(b, id[:]) {
 		t.Errorf("AppendBinary(nil) = %v, %v, want %v, nil", b, err, id[:])
+	}
+	// ZeroID, like MarshalBinary, has no special case
+	if b, err := ZeroID.AppendBinary(nil); err != nil || !bytes.Equal(b, ZeroID[:]) {
+		t.Errorf("ZeroID.AppendBinary(nil) = %v, %v, want %v, nil", b, err, ZeroID[:])
 	}
 	// must agree with MarshalBinary for the same ID
 	wantMB, _ := id.MarshalBinary()
