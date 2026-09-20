@@ -413,7 +413,7 @@ func TestID_UnmarshalText(t *testing.T) {
 		{"invalid chars", "000000000000000u", ZeroID, true},
 		{"invalid length too long", "12345678901", ZeroID, true},
 		{"invalid length too short", "dfb7emm", ZeroID, true},
-		{ // 06bprg666xzm7hpg ts:1741277677111 seq:32579 rnd:49871 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
+		{ // 06bprg666xzm7hpg ts:1741277677111 seq:2036 rnd:246479 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
 			"valid id", "06bprg666xzm7hpg", ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}, false},
 	}
 	for _, tt := range tests {
@@ -622,7 +622,7 @@ func TestIDMarshalJSON(t *testing.T) {
 	if string(got) != "null" {
 		t.Errorf("got: %v, want: \"null\"", string(got))
 	}
-	// 06bprg666xzm7hpg ts:1741277677111 seq:32579 rnd:49871 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
+	// 06bprg666xzm7hpg ts:1741277677111 seq:2036 rnd:246479 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
 	id = ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}
 	v := jsonType{ID: &id, Str: "valid"}
 	data, err := json.Marshal(&v)
@@ -639,7 +639,7 @@ func TestIDUnmarshalJSON(t *testing.T) {
 	if err := id.UnmarshalJSON([]byte("null")); err != nil || id != ZeroID {
 		t.Errorf("id.UnmarshalJSON(\"null\") returns %v, %v, want ZeroID, nil", id, err)
 	}
-	// 06bprg666xzm7hpg ts:1741277677111 seq:32579 rnd:49871 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
+	// 06bprg666xzm7hpg ts:1741277677111 seq:2036 rnd:246479 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
 	data := []byte(`{"ID":"06bprg666xzm7hpg","Str":"valid"}`)
 	v := jsonType{}
 	err := json.Unmarshal(data, &v)
@@ -678,7 +678,7 @@ func TestIDUnmarshalJSON_Error(t *testing.T) {
 }
 
 func TestIDDriverValue(t *testing.T) {
-	// 06bprg666xzm7hpg ts:1741277677111 seq:32579 rnd:49871 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
+	// 06bprg666xzm7hpg ts:1741277677111 seq:2036 rnd:246479 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
 	id := ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}
 	got, err := id.Value()
 	if err != nil {
@@ -705,7 +705,7 @@ func TestIDDriverValue(t *testing.T) {
 }
 
 func TestIDDriverScan(t *testing.T) {
-	// 06bprg666xzm7hpg ts:1741277677111 seq:32579 rnd:49871 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
+	// 06bprg666xzm7hpg ts:1741277677111 seq:2036 rnd:246479 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
 	id := ID{}
 	err := id.Scan("06bprg666xzm7hpg")
 	if err != nil {
@@ -740,7 +740,7 @@ func TestIDDriverScanError(t *testing.T) {
 }
 
 func TestIDDriverScanByteFromDatabase(t *testing.T) {
-	// 06bprg666xzm7hpg ts:1741277677111 seq:32579 rnd:49871 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
+	// 06bprg666xzm7hpg ts:1741277677111 seq:2036 rnd:246479 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
 	got := ID{}
 	bs := []byte("06bprg666xzm7hpg")
 	err := got.Scan(bs)
@@ -1039,6 +1039,7 @@ func TestNewUniqueParallel(t *testing.T) {
 				ids[i] = New()
 				if ids[i].Compare(prev) <= 0 {
 					t.Errorf("goroutine %d: ID %d does not sort after predecessor", g, i)
+					results[g] = ids[:i+1]
 					return
 				}
 				prev = ids[i]
