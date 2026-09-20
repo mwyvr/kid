@@ -47,6 +47,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if count < 1 {
+		fmt.Fprintf(os.Stderr, "kid: Error, -c must be at least 1, got %d.\n", count)
+		os.Exit(1)
+	}
+
 	if len(args) > 0 {
 		os.Exit(decodeIDs(args))
 	}
@@ -95,6 +100,7 @@ func isTerminal(f *os.File) bool {
 	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
+// asHex formats id[:] bytes as 0xab hex strings
 func asHex(b []byte) string {
 	var s []string
 	for _, v := range b {
@@ -104,8 +110,8 @@ func asHex(b []byte) string {
 	return strings.Join(s, ",")
 }
 
-// version reports the module version from the build info: a tagged or
-// pseudo-version when installed from a module, "(unknown)" for local builds.
+// version reports the module version from the build info: strings returned
+// will vary based on the release or dirty state.
 func version() string {
 	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" {
 		return bi.Main.Version
