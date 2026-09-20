@@ -15,7 +15,9 @@
 // which goroutine, the two colliding IDs were produced.
 //
 // Memory: IDs are 10 bytes each; the defaults (4 goroutines x 1,000,000)
-// use roughly 40MB. Size -count and -goroutines to available memory.
+// hold roughly 40MB across the per-goroutine slices, plus a separate
+// pre-allocated merge buffer of the same total size, for a peak of
+// roughly 80MB. Size -count and -goroutines to available memory.
 //
 // Usage:
 //
