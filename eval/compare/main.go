@@ -172,9 +172,14 @@ func newUlid() ulid.ULID {
 	return ulid.MustNew(ulid.Timestamp(time.Now().UTC()), rand.Reader)
 }
 
+// As sonyflake does not provide an encoding, provding a base32 encoding with
+// the same base32 alphabet kid.go itself uses,  digits then letters, with
+// a/i/o/u dropped.
+const sonyflakeAlphabet = "0123456789bcdefghjklmnpqrstvwxyz"
+
 var (
 	sonygen       = newSonygen()
-	base32Encoder = base32.StdEncoding.WithPadding(base32.NoPadding)
+	base32Encoder = base32.NewEncoding(sonyflakeAlphabet).WithPadding(base32.NoPadding)
 )
 
 func newSonygen() *sonyflake.Sonyflake {
@@ -186,8 +191,10 @@ func newSonygen() *sonyflake.Sonyflake {
 }
 
 // SonyFlake has no built-in string encoding; encode the 8-byte big-endian
-// form with base32, no padding. The base32 alphabet is ASCII-ascending and
-// the time bits lead, so the encoding preserves ID order.
+// form with base32Encoder — kid's own alphabet, which is ASCII-ascending
+// (base32.StdEncoding is not, and would not preserve order here — see
+// base32Encoder's declaration). With the time bits leading, this encoding
+// does preserve ID order.
 func newSonyFlake() string {
 	id, err := sonygen.NextID()
 	if err != nil {
