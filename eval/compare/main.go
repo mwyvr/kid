@@ -158,8 +158,8 @@ func main() {
 		},
 	}
 
-	fmt.Printf("| Package                                                   |BLen|ELen| K-Sort| Encoded ID and Next | Unique | Components |\n")
-	fmt.Printf("|-----------------------------------------------------------|----|----|-------|---------------------|--------|------------|\n")
+	fmt.Printf("| Package                                                   |BLen|ELen| K-Sort| Encoded ID and Next 3 | Unique | Components |\n")
+	fmt.Printf("|-----------------------------------------------------------|----|----|-------|-----------------------|--------|------------|\n")
 
 	for _, v := range packages {
 		fmt.Printf("| %-57s | %d | %d | %5v | `%s`<br>`%s`<br>`%s`<br>`%s`  | %s | %s |\n",
@@ -175,11 +175,11 @@ func newUlid() ulid.ULID {
 // As sonyflake does not provide an encoding, provding a base32 encoding with
 // the same base32 alphabet kid.go itself uses,  digits then letters, with
 // a/i/o/u dropped.
-const sonyflakeAlphabet = "0123456789bcdefghjklmnpqrstvwxyz"
+const kidEncoding = "0123456789bcdefghjklmnpqrstvwxyz"
 
 var (
 	sonygen       = newSonygen()
-	base32Encoder = base32.NewEncoding(sonyflakeAlphabet).WithPadding(base32.NoPadding)
+	base32Encoder = base32.NewEncoding(kidEncoding).WithPadding(base32.NoPadding)
 )
 
 func newSonygen() *sonyflake.Sonyflake {
