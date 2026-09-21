@@ -7,6 +7,7 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed release to release.
 - Short and URL-safe: shorter than [rs/xid](https://github.com/rs/xid) or uuid,
   trading away cross-machine coordination and cryptographic unguessability to
   get there.
+- The next produced ID isn't a pure function of the last one, unlike counter-based schemes.
 - K-sortable: encoded and binary forms sort identically, in generation order.
 - No dependencies outside the standard library.
 - Lock-free, allocation-free generation that scales with cores.
@@ -99,7 +100,7 @@ that rate.
 kid was born out of a desire for a short, url-friendly, k-sortable unique
 ID where global uniqueness or inter-process coordination is not required.
 
-| Package                                                                     | BLen | ELen | K-Sort | Encoded ID and Next                                                                                                                                                  | Unique                                    | Components                                                                            |
+| Package                                                                     | BLen | ELen | K-Sort | Encoded ID and Next 3                                                                                                                                                | Unique                                    | Components                                                                            |
 | --------------------------------------------------------------------------- | ---- | ---- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------- |
 | [mwyvr/kid](https://github.com/mwyvr/kid)                                   | 10   | 16   | true   | `06hd9gqjl6v47tg3`<br>`06hd9gqjl6v5j5pb`<br>`06hd9gqjl6v6vmgx`<br>`06hd9gqjl6v7d1c0`                                                                                 | unique (ts(ms) + sequence) + math/rand/v2 | 6 byte ts(millisecond) : 12 bit sequence : 20 bit random (shared 4 bytes)             |
 | [rs/xid](https://github.com/rs/xid)                                         | 12   | 20   | true   | `daolfisi5pnnin79nr80`<br>`daolfisi5pnnin79nr8g`<br>`daolfisi5pnnin79nr90`<br>`daolfisi5pnnin79nr9g`                                                                 | ts(sec) + machineID + pid + counter       | 4 byte ts(sec) : 2 byte mach ID : 2 byte pid : 3 byte monotonic counter               |
@@ -111,6 +112,13 @@ ID where global uniqueness or inter-process coordination is not required.
 | [sony/sonyflake](https://github.com/sony/sonyflake) (kid's base32 encoding) | 8    | 13   | true   | `13ex5ltw04gem`<br>`13ex5ltw08gem`<br>`13ex5ltw0dgem`<br>`13ex5ltw0hgem`                                                                                             | ts + sequence + machine id                | 39 bit ts(10ms) : 8 bit seq : 16 bit mach id                                          |
 | [oklog/ulid](https://github.com/oklog/ulid)                                 | 16   | 26   | true   | `01M32BXWCSWFVRZM3ZVZ3VT897`<br>`01M32BXWCSEFGA8FTQJD4A9KZV`<br>`01M32BXWCSGWR0Y87ACG8XHESK`<br>`01M32BXWCSC2027WG775GY9FQJ`                                         | ts + user-definable rand src              | 6 byte ts(ms) : 10 byte monotonic counter random init per ts(ms)                      |
 | [devjefster/GoShortUniqueID](https://github.com/devjefster/GoShortUniqueID) | 14   | 22   | false  | `260921091403b9j5mh0002`<br>`260921091403yg4JFb0003`<br>`2609210914031ho7kQ0004`<br>`260921091403mbbROv0005`                                                         | ts + math/rand + counter                  | 6 byte ts(second) : 6 base62 random : 2 byte counter (mod 10000)                      |
+
+xid and sonyflake carry no randomness beyond the timestamp — the next ID from
+a live process is exactly computable, not merely difficult to predict. ulid's
+monotonic mode has the same property within a single millisecond (random only
+once per ms, then incremented). The remaining packages, kid included, include
+genuine random bits, so the next ID cannot be computed — only guessed from a
+space of possibilities.
 
 ## Benchmarks
 
