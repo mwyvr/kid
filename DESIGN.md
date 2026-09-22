@@ -104,10 +104,10 @@ returns only an `ID`, in keeping with the Go standard library's
   millions of IDs across many goroutines and checks afterward for
   duplicates and ordering violations:
 
-      go run ./eval/uniqcheck -count 2000000 -goroutines 20
+      cd eval/uniqcheck && go run main.go -count 2000000 -goroutines 20
       # Total IDs: 40,000,000  ts+seq dupes: 0  full-ID dupes: 0  ordering violations: 0
 
-  Single-threaded, without building anything:
+  Single-threaded, using OS tools:
 
       go install github.com/mwyvr/kid/v2/cmd/kid@latest
       kid -c 2000000 | sort | uniq -d

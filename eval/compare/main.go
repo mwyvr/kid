@@ -57,8 +57,8 @@ func main() {
 			xid.New().String(),
 			xid.New().String(),
 			xid.New().String(),
-			"ts(sec) + machineID + pid + counter",
-			"4 byte ts(sec) : 2 byte mach ID : 2 byte pid : 3 byte monotonic counter",
+			// "ts(sec) + machineID + pid + counter",
+			"4 byte ts(sec) : 3 byte mach ID : 2 byte pid : 3 byte monotonic counter",
 		},
 		{
 			"[segmentio/ksuid](https://github.com/segmentio/ksuid)",

@@ -8,7 +8,7 @@
   is documented as undefined past ~year 2262 — far short of the ID format's
   own ~10889 ceiling, and short of what `NewWithTime()` (which already used
   `UnixMilli()`+`Nanosecond()`) could reach. Switched `getTS()` to the same
-  derivation `NewWithTime()` already used; TestGetTSPastUnixNanoRange` confirms.
+  derivation `NewWithTime()` already used; TestGetTSPastUnixNanoRange confirms.
 - `TestNewUniqueParallel` and `eval/uniqcheck` both detected duplicate ts+seq
   pairs by comparing the first 8 bytes of sorted IDs. Under v2's bit packing,
   that actually requires 4 bits of coincidental random agreement beyond a
@@ -111,7 +111,7 @@ Module path is now `github.com/mwyvr/kid/v2`; update imports accordingly.
   `uint32` (was `int32`, and needed widening regardless since 20 bits no
   longer fits `uint16`).
 - `FromString` renamed to `Parse`, aligning with `time.Parse`/`uuid.Parse`
-  convention; no alias retained.
+  convention; no alias retained. `FuzzFromString` now `FuzzParse`.
 
 ### Added
 
