@@ -65,7 +65,7 @@ shared field.
 Within a process, uniqueness is guaranteed.
 
 In-process uniqueness is delivered by the timestamp and sequence generator; the
-trailing random sequence is not there to enforce uniqueness.
+trailing random field is not there to enforce uniqueness.
 
 Across processes or machines, there's no coordination, intentionally, as kid
 IDs remain short by skipping machine ID and PID bytes or additional entropy some
@@ -84,16 +84,16 @@ Moral of the story: Use a coordinated or longer ID (xid, uuid) where
 cross-machine uniqueness is required.
 
 **Capacity**: a process can generate up to 4,096 IDs per millisecond (~4.1
-million per second). Past that point, which easy in a benchmark but unlikely in
-a real application, the embedded timestamp runs ahead of the real clock to keep
-every ID unique and sortable. Ordering is unaffected; the timestamp becomes an
-approximation rather than an exact "created at" instant at that rate.
+million per second). Past that point, which is easy in a benchmark but unlikely
+in a real application, the embedded timestamp runs ahead of the real clock to
+keep every ID unique and sortable. Ordering is unaffected; the timestamp becomes
+an approximation rather than an exact "created at" instant at that rate.
 
 **Timestamp ceiling**: the 48-bit timestamp field itself allows dates
 only up to ~year 10889. `NewWithTime` range-checks against this and
 returns `ErrTimestampOutOfRange`; `New` does not — its signature
 returns only an `ID`, in keeping with the Go standard library's
-[`uuid.NewV7`](https://pkg.go.dev/uuid#NewV7),
+[`uuid.NewV7`](https://pkg.go.dev/uuid#NewV7).
 
 ### Verifying uniqueness
 

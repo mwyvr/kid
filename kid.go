@@ -70,7 +70,7 @@ func init() {
 // New generates a new unique ID.
 //
 // ID is composed of a 6-byte Unix millisecond timestamp followed by a 12-bit
-// sequence and 20 bits of randomness from math/rand/v2.
+// sequence and 20 bits of randomness from math/rand/v2. See [DESIGN.md].
 //
 // New is goroutine-safe and lock-free: the timestamp+sequence is claimed
 // with a single compare-and-swap, falling back to a wait-free atomic
@@ -86,9 +86,8 @@ func New() ID {
 // derived from t's sub-millisecond component.
 //
 // NewWithTime does not draw from New's monotonic sequence, so its IDs are
-// not ordered with respect to New() output and ts+seq uniqueness against
-// New is not guaranteed. Use it where you control generation for a key
-// space: tests, backfills, replays.
+// not ordered with respect to New() output. Use it only where you control
+// generation for a key space: tests, backfills, replays.
 func NewWithTime(t time.Time) (id ID, err error) {
 	milli := t.UnixMilli()
 	if milli < 0 || milli >= 1<<48 {
