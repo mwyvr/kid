@@ -40,7 +40,7 @@ func main() {
 		return
 	}
 
-	if count > 1 && len(args) > 0 {
+	if count > 1 && (len(args) > 0 || !isTerminal(os.Stdin)) {
 		fmt.Fprintf(flag.CommandLine.Output(),
 			"kid: Error, cannot generate ID(s) and inspect at the same time.\n")
 		flag.Usage()
