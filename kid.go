@@ -105,11 +105,6 @@ func Zero() ID {
 	return ID{}
 }
 
-// Max returns the maximum ID value: {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
-func Max() ID {
-	return ID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
-}
-
 // seqBits is the width of the sequence field packed into the trailing
 // 4 bytes; the remaining bits (randBits) carry randomness. seqBits must
 // stay large enough to hold getTS's full sequence range (see getTS) and
