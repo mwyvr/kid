@@ -73,7 +73,7 @@ func init() {
 // sequence and 20 bits of randomness from math/rand/v2. See DESIGN.md.
 //
 // New is goroutine-safe and lock-free: the timestamp+sequence is claimed
-// with a single compare-and-swap, falling back to a wait-free atomic
+// with a single compare-and-swap, falling back to a lock-free atomic
 // increment under contention. Every call returns an ID whose timestamp +
 // sequence is strictly greater than the previously generated one, even if
 // the wall clock steps backwards (see getTS).
@@ -82,12 +82,12 @@ func New() ID {
 	return buildID(t, s)
 }
 
-// NewWithTime generates a new ID with the given timestamp. The sequence is
-// derived from t's sub-millisecond component.
+// NewWithTime generates a new ID with the given timestamp.
 //
-// NewWithTime does not draw from New's monotonic sequence, so its IDs are
-// not ordered with respect to New() output. Use it only where you control
-// generation for a key space: tests, backfills, replays.
+// The sequence is derived from t's sub-millisecond component rather than via
+// getTS, so its output isn't ordered relative to New's, and ts+seq uniqueness
+// against New isn't guaranteed. Use it where you control generation for a key
+// space: tests, backfills, replays.
 func NewWithTime(t time.Time) (id ID, err error) {
 	milli := t.UnixMilli()
 	if milli < 0 || milli >= 1<<48 {
@@ -431,7 +431,7 @@ func getTS() (milli, seq uint64) {
 		return milli, seq
 	}
 	// The wall clock is not ahead, or another goroutine won the race:
-	// claim the next slot wait-free.
+	// claim the next slot lock-free.
 	now = lastTime.Add(1)
 	return now >> 12, now & 0xfff
 }
