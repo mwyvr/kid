@@ -7,7 +7,8 @@ See [CHANGELOG.md](CHANGELOG.md) for what changed release to release.
 - Short and URL-safe: shorter than [rs/xid](https://github.com/rs/xid) or uuid,
   trading away cross-machine coordination and cryptographic unguessability to
   get there.
-- The next produced ID isn't a pure function of the last one, unlike counter-based schemes.
+- The next produced ID isn't a pure function of the last one, unlike
+  counter-based schemes.
 - K-sortable: encoded and binary forms sort identically, in generation order.
 - No dependencies outside the standard library.
 - Lock-free, allocation-free generation that scales with cores.
@@ -61,21 +62,38 @@ shared field.
 
 ## Uniqueness
 
-Within a process, uniqueness is guaranteed, not probabilistic: the timestamp and
-sequence come from one shared atomic counter, so two calls can no more return
-the same value than two goroutines incrementing a counter can.
+Within a process, uniqueness is guaranteed.
+
+In-process uniqueness is delivered by the timestamp and sequence generator; the
+trailing random sequence is not there to enforce uniqueness.
 
 Across processes or machines, there's no coordination, intentionally, as kid
-IDs remain short by skipping machine ID and PID bytes or more entropy some other
-ID schemes use. Use a coordinated or longer ID (xid, uuid) where cross-machine
-uniqueness is required.
+IDs remain short by skipping machine ID and PID bytes or additional entropy some
+other ID schemes use.
 
-**Capacity**: a process can generate up to 4,096 IDs per millisecond
-(~4.1 million per second). Past that — easy in a benchmark, unlikely in a
-real application — the embedded timestamp runs ahead of the real clock to
-keep every ID unique and sortable. Ordering is unaffected; the timestamp
-becomes an approximation rather than an exact "created at" instant at
-that rate.
+If two processes generate an ID within the same millisecond, the odds of a full
+collision are only one in 4 billion:
+
+      seq        randomness
+    (1/3,907) × (1/1,048,576) = 1 in 4,096,786,432 (per millisecond)
+
+In contrast, even under the same conservative standard, stdlib UUID v7's
+worst-case probability of collision is at least one in 4,611,686,018,427,387,904.
+
+Moral of the story: Use a coordinated or longer ID (xid, uuid) where
+cross-machine uniqueness is required.
+
+**Capacity**: a process can generate up to 4,096 IDs per millisecond (~4.1
+million per second). Past that point, which easy in a benchmark but unlikely in
+a real application, the embedded timestamp runs ahead of the real clock to keep
+every ID unique and sortable. Ordering is unaffected; the timestamp becomes an
+approximation rather than an exact "created at" instant at that rate.
+
+**Timestamp ceiling**: the 48-bit timestamp field itself allows dates
+only up to ~year 10889. `NewWithTime` range-checks against this and
+returns `ErrTimestampOutOfRange`; `New` does not — its signature
+returns only an `ID`, in keeping with the Go standard library's
+[`uuid.NewV7`](https://pkg.go.dev/uuid#NewV7),
 
 ### Verifying uniqueness
 

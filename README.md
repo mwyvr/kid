@@ -89,6 +89,6 @@ $ kid -c 2
 ## Acknowledgments
 
 The API borrows from [github.com/rs/xid](https://github.com/rs/xid). The
-lock-free ts+seq claim derives from
+lock-free ts+seq mechanism derives from
 [google/uuid](https://github.com/google/uuid/blob/master/version7.go#L88)'s
 getV7Time(). Third-party license texts are in [NOTICES](NOTICES).
