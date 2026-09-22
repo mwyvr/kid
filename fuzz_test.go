@@ -19,7 +19,7 @@ func FuzzParse(f *testing.F) {
 	f.Fuzz(func(t *testing.T, s string) {
 		id, err := Parse(s)
 		if err != nil {
-			if id != ZeroID {
+			if id != Zero() {
 				t.Fatalf("Parse(%q) errored but returned non-nil ID %v", s, id)
 			}
 			return
@@ -41,14 +41,14 @@ func FuzzUnmarshalJSON(f *testing.F) {
 	f.Fuzz(func(t *testing.T, b []byte) {
 		var id ID
 		if err := id.UnmarshalJSON(b); err != nil {
-			if id != ZeroID {
+			if id != Zero() {
 				t.Fatalf("UnmarshalJSON(%q) errored but left non-nil ID %v", b, id)
 			}
 			return
 		}
 		if string(b) == "null" {
-			if id != ZeroID {
-				t.Fatalf("UnmarshalJSON(null) = %v, want ZeroID", id)
+			if id != Zero() {
+				t.Fatalf("UnmarshalJSON(null) = %v, want Zero()", id)
 			}
 			return
 		}
@@ -56,7 +56,7 @@ func FuzzUnmarshalJSON(f *testing.F) {
 			t.Fatalf("UnmarshalJSON accepted non-string JSON: %q", b)
 		}
 		// the nil ID marshals to null (asymmetric by design); skip roundtrip
-		if id == ZeroID {
+		if id == Zero() {
 			return
 		}
 		got, err := id.MarshalJSON()

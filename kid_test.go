@@ -161,8 +161,8 @@ func TestNewWithTimeOutOfRange(t *testing.T) {
 		"past field":   time.UnixMilli(1 << 48),
 	} {
 		id, err := NewWithTime(tm)
-		if !errors.Is(err, ErrTimestampOutOfRange) || id != ZeroID {
-			t.Errorf("%s: got %v, %v; want ZeroID, ErrTimestampOutOfRange", name, id, err)
+		if !errors.Is(err, ErrTimestampOutOfRange) || id != Zero() {
+			t.Errorf("%s: got %v, %v; want Zero(), ErrTimestampOutOfRange", name, id, err)
 		}
 	}
 	// The largest representable millisecond is accepted.
@@ -240,8 +240,8 @@ func TestInvalid(t *testing.T) {
 			if err == nil {
 				t.Errorf("invalid encoded %v, Parse() should be err", v.encoded)
 			}
-			if id != ZeroID {
-				t.Errorf("invalid encoded %v returned %v, Parse() should return ZeroID", v.encoded, v.id[:])
+			if id != Zero() {
+				t.Errorf("invalid encoded %v returned %v, Parse() should return Zero()", v.encoded, v.id[:])
 			}
 		})
 	}
@@ -333,8 +333,8 @@ func TestSequence(t *testing.T) {
 
 func TestIDTime(t *testing.T) {
 	ZeroIDTime := "1970-01-01 00:00:00 +0000 UTC"
-	if ZeroID.Time().String() != ZeroIDTime {
-		t.Errorf("got: %s, want:%s", ZeroID.Time(), ZeroIDTime)
+	if Zero().Time().String() != ZeroIDTime {
+		t.Errorf("got: %s, want:%s", Zero().Time(), ZeroIDTime)
 	}
 	// zero-valued ID (all bytes zero) must produce the same time
 	zero := ID{}
@@ -392,8 +392,8 @@ func TestParseInvalid(t *testing.T) {
 	if err != ErrInvalidID {
 		t.Errorf("Parse(062ez870acdtzd2y3qajilou - invalid chars) err=%v, want %v", err, ErrInvalidID)
 	}
-	if id != ZeroID {
-		t.Errorf("Parse() = %v, want %v", id, ZeroID)
+	if id != Zero() {
+		t.Errorf("Parse() = %v, want %v", id, Zero())
 	}
 }
 
@@ -410,15 +410,15 @@ func TestID_UnmarshalText(t *testing.T) {
 		{ // zzzzzzzzzzzzzzzz ts:281474976710655 seq:4095 rnd:1048575 10889-08-02 05:31:50.655 +0000 UTC ID{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }
 			"valid_max", "zzzzzzzzzzzzzzzz", ID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, false,
 		},
-		{"invalid chars", "000000000000000u", ZeroID, true},
-		{"invalid length too long", "12345678901", ZeroID, true},
-		{"invalid length too short", "dfb7emm", ZeroID, true},
+		{"invalid chars", "000000000000000u", Zero(), true},
+		{"invalid length too long", "12345678901", Zero(), true},
+		{"invalid length too short", "dfb7emm", Zero(), true},
 		{ // 06bprg666xzm7hpg ts:1741277677111 seq:2036 rnd:246479 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
 			"valid id", "06bprg666xzm7hpg", ID{0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// pre-fill so the error path's reset-to-ZeroID is actually exercised
+			// pre-fill so the error path's reset-to-Zero() is actually exercised
 			id := ID{0xde, 0xca, 0xfb, 0xad, 0xde, 0xca, 0xfb, 0xad, 0xde, 0xca}
 			err := id.UnmarshalText([]byte(tt.encoded))
 			if (err != nil) != tt.wantErr {
@@ -426,8 +426,8 @@ func TestID_UnmarshalText(t *testing.T) {
 			}
 			if err != nil {
 				// on error, id must be reset to the zero ID
-				if id != ZeroID {
-					t.Errorf("ID.UnmarshalText(%s) got: %v, want ZeroID %v", tt.encoded, id, ZeroID)
+				if id != Zero() {
+					t.Errorf("ID.UnmarshalText(%s) got: %v, want Zero() %v", tt.encoded, id, Zero())
 				}
 				return
 			}
@@ -444,8 +444,8 @@ func TestID_UnmarshalText(t *testing.T) {
 	if err := id.UnmarshalText([]byte("decafebad")); err != ErrInvalidID {
 		t.Errorf("ID.UnmarshalText(%q) err = %v, want %v", "decafebad", err, ErrInvalidID)
 	}
-	if id != ZeroID {
-		t.Errorf("ID.UnmarshalText(%q) = %v, want %v", "decafebad", id, ZeroID)
+	if id != Zero() {
+		t.Errorf("ID.UnmarshalText(%q) = %v, want %v", "decafebad", id, Zero())
 	}
 }
 
@@ -459,12 +459,12 @@ func TestIDMarshalText(t *testing.T) {
 		t.Errorf("MarshalText() = %s, want %s", got, want)
 	}
 	// nil ID
-	b, err = ZeroID.MarshalText()
+	b, err = Zero().MarshalText()
 	if err != nil {
-		t.Fatalf("ZeroID.MarshalText() error = %v, want nil", err)
+		t.Fatalf("Zero().MarshalText() error = %v, want nil", err)
 	}
 	if got, want := string(b), "0000000000000000"; got != want {
-		t.Errorf("ZeroID.MarshalText() = %s, want %s", got, want)
+		t.Errorf("Zero().MarshalText() = %s, want %s", got, want)
 	}
 }
 
@@ -485,12 +485,12 @@ func TestIDAppendText(t *testing.T) {
 		t.Errorf("AppendText() mutated its argument: prefix = %s, want %s", got, want)
 	}
 	// nil b, nil ID
-	b, err = ZeroID.AppendText(nil)
+	b, err = Zero().AppendText(nil)
 	if err != nil {
-		t.Fatalf("ZeroID.AppendText(nil) error = %v, want nil", err)
+		t.Fatalf("Zero().AppendText(nil) error = %v, want nil", err)
 	}
 	if got, want := string(b), "0000000000000000"; got != want {
-		t.Errorf("ZeroID.AppendText(nil) = %s, want %s", got, want)
+		t.Errorf("Zero().AppendText(nil) = %s, want %s", got, want)
 	}
 	// must agree with MarshalText for the same ID
 	want, _ := id.MarshalText()
@@ -511,8 +511,8 @@ func TestFromBytes_Invariant(t *testing.T) {
 	}
 	// invalid
 	got, err = FromBytes([]byte{0x1, 0x2})
-	if !bytes.Equal(got[:], ZeroID[:]) {
-		t.Error("FromBytes([]byte{0x1, 0x2}) - invalid - != ZeroID")
+	if !bytes.Equal(got[:], Zero().Bytes()) {
+		t.Error("FromBytes([]byte{0x1, 0x2}) - invalid - != Zero()")
 	}
 	if err == nil {
 		t.Fatal(err)
@@ -533,17 +533,18 @@ func TestIDMarshalBinary(t *testing.T) {
 	if id[0] == 0xff {
 		t.Error("MarshalBinary() did not return a copy")
 	}
-	// unlike Value/ValueBinary, MarshalBinary has no ZeroID special case:
+	// unlike Value/ValueBinary, MarshalBinary has no Zero() special case:
 	// it always returns the 10 raw bytes, even all-zero ones.
-	b, err = ZeroID.MarshalBinary()
+	b, err = Zero().MarshalBinary()
 	if err != nil {
-		t.Fatalf("ZeroID.MarshalBinary() error = %v, want nil", err)
+		t.Fatalf("Zero().MarshalBinary() error = %v, want nil", err)
 	}
-	if !bytes.Equal(b, ZeroID[:]) {
-		t.Errorf("ZeroID.MarshalBinary() = %v, want %v", b, ZeroID[:])
+	if !bytes.Equal(b, Zero().Bytes()) {
+		t.Errorf("Zero().MarshalBinary() = %v, want %v", b, Zero().Bytes())
 	}
-	if got := ZeroID.Bytes(); !bytes.Equal(got, ZeroID[:]) {
-		t.Errorf("ZeroID.Bytes() = %v, want %v", got, ZeroID[:])
+	zero := Zero()
+	if got := zero.Bytes(); !bytes.Equal(got, zero[:]) {
+		t.Errorf("Zero().Bytes() = %v, want %v", got, zero[:])
 	}
 }
 
@@ -566,9 +567,9 @@ func TestIDAppendBinary(t *testing.T) {
 	if b, err := id.AppendBinary(nil); err != nil || !bytes.Equal(b, id[:]) {
 		t.Errorf("AppendBinary(nil) = %v, %v, want %v, nil", b, err, id[:])
 	}
-	// ZeroID, like MarshalBinary, has no special case
-	if b, err := ZeroID.AppendBinary(nil); err != nil || !bytes.Equal(b, ZeroID[:]) {
-		t.Errorf("ZeroID.AppendBinary(nil) = %v, %v, want %v, nil", b, err, ZeroID[:])
+	// Zero(), like MarshalBinary, has no special case
+	if b, err := Zero().AppendBinary(nil); err != nil || !bytes.Equal(b, Zero().Bytes()) {
+		t.Errorf("Zero().AppendBinary(nil) = %v, %v, want %v, nil", b, err, Zero().Bytes())
 	}
 	// must agree with MarshalBinary for the same ID
 	wantMB, _ := id.MarshalBinary()
@@ -591,20 +592,20 @@ func TestIDUnmarshalBinary(t *testing.T) {
 	if got != want {
 		t.Errorf("UnmarshalBinary() = %v, want %v", got, want)
 	}
-	// invalid length resets to ZeroID and returns ErrInvalidID
+	// invalid length resets to Zero() and returns ErrInvalidID
 	got = want // pre-fill with a non-zero value so the reset is exercised
 	if err := got.UnmarshalBinary([]byte{0x1, 0x2}); err != ErrInvalidID {
 		t.Errorf("UnmarshalBinary(short) error = %v, want %v", err, ErrInvalidID)
 	}
-	if got != ZeroID {
-		t.Errorf("UnmarshalBinary(short) left id = %v, want ZeroID", got)
+	if got != Zero() {
+		t.Errorf("UnmarshalBinary(short) left id = %v, want Zero()", got)
 	}
 	got = want
 	if err := got.UnmarshalBinary(append(data, 0x0)); err != ErrInvalidID {
 		t.Errorf("UnmarshalBinary(long) error = %v, want %v", err, ErrInvalidID)
 	}
-	if got != ZeroID {
-		t.Errorf("UnmarshalBinary(long) left id = %v, want ZeroID", got)
+	if got != Zero() {
+		t.Errorf("UnmarshalBinary(long) left id = %v, want Zero()", got)
 	}
 }
 
@@ -636,8 +637,8 @@ func TestIDMarshalJSON(t *testing.T) {
 
 func TestIDUnmarshalJSON(t *testing.T) {
 	id := ID{}
-	if err := id.UnmarshalJSON([]byte("null")); err != nil || id != ZeroID {
-		t.Errorf("id.UnmarshalJSON(\"null\") returns %v, %v, want ZeroID, nil", id, err)
+	if err := id.UnmarshalJSON([]byte("null")); err != nil || id != Zero() {
+		t.Errorf("id.UnmarshalJSON(\"null\") returns %v, %v, want Zero(), nil", id, err)
 	}
 	// 06bprg666xzm7hpg ts:1741277677111 seq:2036 rnd:246479 2025-03-06 16:14:37.111 +0000 UTC ID{  0x1, 0x95, 0x6c, 0x3c, 0xc6, 0x37, 0x7f, 0x43, 0xc2, 0xcf }
 	data := []byte(`{"ID":"06bprg666xzm7hpg","Str":"valid"}`)
@@ -687,9 +688,9 @@ func TestIDDriverValue(t *testing.T) {
 	if want := "06bprg666xzm7hpg"; got != want {
 		t.Errorf("Value() = %v, want %v", got, want)
 	}
-	got, err = ZeroID.Value()
+	got, err = Zero().Value()
 	if got != nil || err != nil {
-		t.Errorf("ZeroID.Value() should return nil, nil, got: %v, %v", got, err)
+		t.Errorf("Zero().Value() should return nil, nil, got: %v, %v", got, err)
 	}
 	got, err = id.ValueBinary()
 	if err != nil {
@@ -698,9 +699,9 @@ func TestIDDriverValue(t *testing.T) {
 	if !bytes.Equal(got.([]byte), id[:]) {
 		t.Errorf("ValueBinary() = %v, want %v", got, id[:])
 	}
-	got, err = ZeroID.ValueBinary()
+	got, err = Zero().ValueBinary()
 	if got != nil || err != nil {
-		t.Errorf("ZeroID.ValueBinary() should return nil, nil, got: %v, %v", got, err)
+		t.Errorf("Zero().ValueBinary() should return nil, nil, got: %v, %v", got, err)
 	}
 }
 
@@ -717,8 +718,8 @@ func TestIDDriverScan(t *testing.T) {
 	}
 	id = ID{}
 	err = id.Scan(nil)
-	if err != nil || id != ZeroID {
-		t.Errorf("ZeroID.Scan(nil) should return nil err, ZeroID. got: %v %v", err, id)
+	if err != nil || id != Zero() {
+		t.Errorf("Zero().Scan(nil) should return nil err, Zero(). got: %v %v", err, id)
 	}
 }
 
@@ -734,8 +735,8 @@ func TestIDDriverScanError(t *testing.T) {
 	if got, want := id.Scan("0"), ErrInvalidID; got != want {
 		t.Errorf("Scan() err=%v, want %v", got, want)
 	}
-	if id != ZeroID {
-		t.Errorf("Scan() id=%v, want %v", id, ZeroID)
+	if id != Zero() {
+		t.Errorf("Scan() id=%v, want %v", id, Zero())
 	}
 }
 
@@ -781,8 +782,8 @@ func TestIDUnmarshalJSON_RejectsNonString(t *testing.T) {
 	if err := id.UnmarshalJSON([]byte(`123456789012345678`)); err != ErrInvalidID {
 		t.Errorf("UnmarshalJSON(number) err=%v, want %v", err, ErrInvalidID)
 	}
-	if id != ZeroID {
-		t.Errorf("UnmarshalJSON(number) id=%v, want ZeroID", id)
+	if id != Zero() {
+		t.Errorf("UnmarshalJSON(number) id=%v, want Zero()", id)
 	}
 	// mismatched/absent quotes of the right total length must also fail
 	for _, b := range []string{
