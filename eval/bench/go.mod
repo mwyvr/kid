@@ -1,8 +1,8 @@
 module github.com/mwyvr/kid/eval/bench
 
 // The 1.27 floor (higher than the 1.24 used by the root module and
-// eval/uniqcheck) is deliberate: this module benchmarks against the
-// stdlib "uuid" package, which first ships in Go 1.27.
+// eval/uniqcheck) is deliberate: this module includes a benchmark of the stdlib
+// "uuid" package, which first ships in Go 1.27.
 go 1.27
 
 require (

@@ -46,9 +46,9 @@ Max date at 48 bits: 10889-08-02.
 range is documented as undefined past ~year 2262, far short of the format's
 own 10889 ceiling.
 
-## Why 12+20, not 16+16
+## Moving from kid v1: why 12+20, not 16+16
 
-kid v2 decodes, compares, sorts, and round-trips v1 IDs correctly; only
+**Note**: kid v2 decodes, compares, sorts, and round-trips v1 IDs correctly; only
 Sequence() and Random() on a pre-v2 ID won't recover the original v1 split,
 since the bit boundaries moved.
 

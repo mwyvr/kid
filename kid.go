@@ -70,7 +70,7 @@ func init() {
 // New generates a new unique ID.
 //
 // ID is composed of a 6-byte Unix millisecond timestamp followed by a 12-bit
-// sequence and 20 bits of randomness from math/rand/v2. See [DESIGN.md].
+// sequence and 20 bits of randomness from math/rand/v2. See DESIGN.md.
 //
 // New is goroutine-safe and lock-free: the timestamp+sequence is claimed
 // with a single compare-and-swap, falling back to a wait-free atomic
@@ -100,14 +100,14 @@ func NewWithTime(t time.Time) (id ID, err error) {
 
 // Zero returns the zero ID value: {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 //
-// The zero ID value is both the nil sentinel (see IsZero) and a valid, decodable ID.
+// The zero ID value is both the nil sentinel (see [IsZero]) and a valid, decodable ID.
 func Zero() ID {
 	return ID{}
 }
 
 // seqBits is the width of the sequence field packed into the trailing
 // 4 bytes; the remaining bits (randBits) carry randomness. seqBits must
-// stay large enough to hold getTS's full sequence range (see getTS) and
+// stay large enough to hold getTS's full sequence range (see [getTS]) and
 // randMask/randBits must partition exactly the 32 bits of id[6:10].
 const (
 	seqBits  = 12
@@ -413,7 +413,7 @@ const nanoPerMilli = 1000000
 // getTS returns the current Unix time in milliseconds and a sequence value.
 // The fast path claims a clock-derived value with one compare-and-swap; if
 // the clock is not ahead of the last issued value, or the swap loses a race,
-// the next slot is claimed with a wait-free atomic increment. Both paths
+// the next slot is claimed with a lock-free atomic increment. Both paths
 // strictly increase lastTime and return exactly the value installed, so
 // every (milli << 12 + seq) is strictly greater than any previous one, even
 // if the wall clock steps backwards, with no retry loop.
