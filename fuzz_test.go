@@ -6,7 +6,7 @@ import (
 )
 
 // FuzzParse verifies that any input either fails cleanly (returning the
-// nil ID) or roundtrips exactly through String().
+// Zero ID) or roundtrips exactly through String().
 func FuzzParse(f *testing.F) {
 	f.Add("06bqer9xnm79tfnl")
 	f.Add("0000000000000000")
@@ -20,7 +20,7 @@ func FuzzParse(f *testing.F) {
 		id, err := Parse(s)
 		if err != nil {
 			if id != Zero() {
-				t.Fatalf("Parse(%q) errored but returned non-nil ID %v", s, id)
+				t.Fatalf("Parse(%q) errored but returned non-Zero ID %v", s, id)
 			}
 			return
 		}
@@ -42,7 +42,7 @@ func FuzzUnmarshalJSON(f *testing.F) {
 		var id ID
 		if err := id.UnmarshalJSON(b); err != nil {
 			if id != Zero() {
-				t.Fatalf("UnmarshalJSON(%q) errored but left non-nil ID %v", b, id)
+				t.Fatalf("UnmarshalJSON(%q) errored but left non-Zero ID %v", b, id)
 			}
 			return
 		}
@@ -55,7 +55,7 @@ func FuzzUnmarshalJSON(f *testing.F) {
 		if len(b) != encodedLen+2 || b[0] != '"' || b[len(b)-1] != '"' {
 			t.Fatalf("UnmarshalJSON accepted non-string JSON: %q", b)
 		}
-		// the nil ID marshals to null (asymmetric by design); skip roundtrip
+		// the Zero ID marshals to null (asymmetric by design); skip roundtrip
 		if id == Zero() {
 			return
 		}
