@@ -104,10 +104,10 @@ func isTerminal(f *os.File) bool {
 func asHex(b []byte) string {
 	var s []string
 	for _, v := range b {
-		s = append(s, fmt.Sprintf(" %#02x", v))
+		s = append(s, fmt.Sprintf("%#02x", v))
 	}
 
-	return strings.Join(s, ",")
+	return strings.Join(s, ", ")
 }
 
 // version reports the module version from the build info: strings returned
