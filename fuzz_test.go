@@ -50,6 +50,9 @@ func FuzzUnmarshalJSON(f *testing.F) {
 			if id != Zero() {
 				t.Fatalf("UnmarshalJSON(null) = %v, want Zero()", id)
 			}
+			if got, err := id.MarshalJSON(); err != nil || string(got) != "null" {
+				t.Fatalf("roundtrip mismatch: null -> %v -> %q (%v), want null", id, got, err)
+			}
 			return
 		}
 		if len(b) != encodedLen+2 || b[0] != '"' || b[len(b)-1] != '"' {
