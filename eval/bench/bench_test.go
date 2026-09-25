@@ -15,7 +15,7 @@ import (
 	"github.com/mwyvr/kid/v2"
 )
 
-// Unless noted otherwise, package id creation is zero allocaiton.
+// Unless noted otherwise, package id creation is zero allocation.
 
 // kid ids incorporate a timestamp in milliseconds + sequence + a 20-bit random value from math/rand/v2
 func BenchmarkKid(b *testing.B) {
