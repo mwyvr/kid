@@ -332,14 +332,29 @@ func TestSequence(t *testing.T) {
 }
 
 func TestIDTime(t *testing.T) {
-	ZeroIDTime := "1970-01-01 00:00:00 +0000 UTC"
-	if Zero().Time().String() != ZeroIDTime {
-		t.Errorf("got: %s, want:%s", Zero().Time(), ZeroIDTime)
+	cases := []struct {
+		name string
+		id   ID
+		want time.Time
+	}{
+		// epoc
+		{"zero", Zero(), time.Unix(0, 0).UTC()},
+		{
+			"non-zero ts, max seq+random noise",
+			// timestamp bytes match the 1999-12-31 vector in the tests
+			// table; trailing 0xff x4 sets seq=4095, random=1048575.
+			ID{0x0, 0xdc, 0x6a, 0xcf, 0xab, 0xff, 0xff, 0xff, 0xff, 0xff},
+			// 999,000,000 ns
+			time.Date(1999, 12, 31, 23, 59, 59, 999_000_000, time.UTC),
+		},
 	}
-	// zero-valued ID (all bytes zero) must produce the same time
-	zero := ID{}
-	if zero.Time().String() != ZeroIDTime {
-		t.Errorf("zero ID Time() = %s, want %s", zero.Time().String(), ZeroIDTime)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := c.id.Time()
+			if !got.Equal(c.want) || got.Location() != time.UTC {
+				t.Errorf("Time() = %v (location %v), want %v in UTC", got, got.Location(), c.want)
+			}
+		})
 	}
 }
 
