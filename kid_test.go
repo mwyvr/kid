@@ -944,6 +944,7 @@ func resetClock(t *testing.T) {
 // clock steps backwards (e.g. NTP correction): ts+seq must still increase.
 func TestGetTSClockRegression(t *testing.T) {
 	resetClock(t)
+	lastTime.Store(0)
 
 	base := time.Date(2026, 7, 6, 12, 0, 0, 500_000, time.UTC)
 	timeNow = func() time.Time { return base }
