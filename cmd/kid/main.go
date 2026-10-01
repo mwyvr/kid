@@ -22,15 +22,15 @@ func main() {
 		fs := flag.CommandLine
 		fcount := fs.Lookup("c")
 
-		fmt.Printf("Usage: kid\n\n")
-		fmt.Printf("Options:\n")
-		fmt.Printf("  kid 06bpk9h5kd17xd7z\t\tDecode the supplied Base32 ID\n")
-		fmt.Printf("  kid -%s N\t\t\t%s default: %s\n", fcount.Name, fcount.Usage, fcount.DefValue)
-		fmt.Printf("  echo 06bpk9h5kd17xd7z | kid\t\tDecode IDs from stdin\n")
-		fmt.Printf("  kid -version\t\t\tPrint version and exit\n\n")
-		fmt.Printf("With no parameters and no piped input, kid generates %s random ID encoded as Base32.\n", fcount.DefValue)
-		fmt.Printf("Generate and inspect 4 random IDs using Linux/Unix command substitution:\n")
-		fmt.Printf("  kid `kid -c 4`\n")
+		fmt.Fprintf(os.Stderr, "Usage: kid\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		fmt.Fprintf(os.Stderr, "  kid 06bpk9h5kd17xd7z\t\tDecode the supplied Base32 ID\n")
+		fmt.Fprintf(os.Stderr, "  kid -%s N\t\t\t%s default: %s\n", fcount.Name, fcount.Usage, fcount.DefValue)
+		fmt.Fprintf(os.Stderr, "  echo 06bpk9h5kd17xd7z | kid\t\tDecode IDs from stdin\n")
+		fmt.Fprintf(os.Stderr, "  kid -version\t\t\tPrint version and exit\n\n")
+		fmt.Fprintf(os.Stderr, "With no parameters and no piped input, kid generates %s random ID encoded as Base32.\n", fcount.DefValue)
+		fmt.Fprintf(os.Stderr, "Generate and inspect 4 random IDs using Linux/Unix command substitution:\n")
+		fmt.Fprintf(os.Stderr, "  kid `kid -c 4`\n")
 	}
 	flag.Parse()
 	args := flag.Args()
@@ -41,8 +41,7 @@ func main() {
 	}
 
 	if count > 1 && (len(args) > 0 || !isTerminal(os.Stdin)) {
-		fmt.Fprintf(flag.CommandLine.Output(),
-			"kid: Error, cannot generate ID(s) and inspect at the same time.\n")
+		fmt.Fprintf(os.Stderr, "kid: Error, cannot generate ID(s) and inspect at the same time.\n")
 		flag.Usage()
 		os.Exit(1)
 	}
