@@ -72,11 +72,8 @@ func init() {
 // ID is composed of a 6-byte Unix millisecond timestamp followed by a 12-bit
 // sequence and 20 bits of randomness from math/rand/v2. See DESIGN.md.
 //
-// New is goroutine-safe and lock-free: the timestamp+sequence is claimed
-// with a single compare-and-swap, falling back to a lock-free atomic
-// increment under contention. Every call returns an ID whose timestamp +
-// sequence is strictly greater than the previously generated one, even if
-// the wall clock steps backwards (see getTS).
+// New is goroutine-safe. Every call returns an ID whose timestamp + sequence,
+// produced by [getTS], is strictly greater than any previously issued one.
 func New() ID {
 	t, s := getTS()
 	return buildID(t, s)
@@ -85,7 +82,7 @@ func New() ID {
 // NewWithTime generates a new ID with the given timestamp.
 //
 // The sequence is derived from t's sub-millisecond component rather than via
-// getTS, so its output isn't ordered relative to New's, and ts+seq uniqueness
+// [getTS], so its output isn't ordered relative to New's, and ts+seq uniqueness
 // against New isn't guaranteed. Use it where you control generation for a key
 // space: tests, backfills, replays.
 func NewWithTime(t time.Time) (id ID, err error) {
@@ -174,9 +171,9 @@ func (id ID) AppendText(b []byte) ([]byte, error) {
 	return append(b, buf[:]...), nil
 }
 
-// encode writes the 16-byte base32 encoding of id to dst, unrolling the
-// stdlib algorithm without bounds checks. Base32 of 10 bytes needs no
-// padding: 8 encoded bytes per 5 input bytes.
+// encode writes the 16-byte base32 encoding of id to dst, unrolling the stdlib
+// algorithm for performance. kid's binary length was chosen with encoding in
+// mind: Base32 of 10 bytes needs no padding: 8 encoded bytes per 5 input bytes.
 func encode(dst, id []byte) {
 	_ = dst[15] // bounds check hint
 	_ = id[9]   // bounds check hint

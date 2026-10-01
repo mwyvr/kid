@@ -78,16 +78,18 @@ collision are only one in 4 billion:
     (1/3,907) × (1/1,048,576) = 1 in 4,096,786,432 (per millisecond)
 
 In contrast, even under the same conservative standard, stdlib UUID v7's
-worst-case probability of collision is at least one in 4,611,686,018,427,387,904.
+worst-case probability of collision is at least one in 4,611,686,018,427,387,904
+using only its 62 bits of pure randomness.
 
 Moral of the story: Use a coordinated or longer ID (xid, uuid) where
 cross-machine uniqueness is required.
 
 **Capacity**: a process can generate up to 4,096 IDs per millisecond (~4.1
-million per second). Past that point, which is easy in a benchmark but unlikely
-in a real application, the embedded timestamp runs ahead of the real clock to
-keep every ID unique and sortable. Ordering is unaffected; the timestamp becomes
-an approximation rather than an exact "created at" instant at that rate.
+million per second). A tight generation loop such as bulk inserts, migrations,
+or backfills, will clear this easily. Past that rate, the embedded timestamp
+runs ahead of the real clock to keep every ID unique and sortable. Ordering
+is unaffected; treat the timestamp as monotonic creation order rather than a
+precise wall-clock instant under sustained load.
 
 **Timestamp ceiling**: the 48-bit timestamp field itself allows dates
 only up to ~year 10889. `NewWithTime` range-checks against this and
