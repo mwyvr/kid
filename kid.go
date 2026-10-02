@@ -275,10 +275,10 @@ func decode(id *ID, src []byte) {
 	id[0] = dec[src[0]]<<3 | dec[src[1]]>>2
 }
 
-// Value implements driver.Valuer, returning the 16-character encoded
-// string, or nil for the zero value. Value only ever writes the string
-// form; to store the 10-byte binary form (e.g. in a VARBINARY(10) column),
-// use ValueBinary. Scan reads both back.
+// Value implements driver.Valuer, returning the 16-character encoded string, or
+// nil for the zero value. Value only ever writes the string form; to store the
+// 10-byte binary form (e.g. in a VARBINARY(10) column), use ValueBinary. Scan
+// reads both back.
 func (id ID) Value() (driver.Value, error) {
 	if id.IsZero() {
 		return nil, nil
@@ -286,8 +286,8 @@ func (id ID) Value() (driver.Value, error) {
 	return id.String(), nil
 }
 
-// ValueBinary implements driver.Valuer, returning a copy of the 10-byte
-// binary form, or nil for the zero value. Scan reads both forms back.
+// ValueBinary returns a copy of the 10-byte binary form, or nil for the zero
+// value — the binary-form counterpart to Value. Scan reads both forms back.
 func (id ID) ValueBinary() (driver.Value, error) {
 	if id.IsZero() {
 		return nil, nil
@@ -296,10 +296,10 @@ func (id ID) ValueBinary() (driver.Value, error) {
 }
 
 // Scan implements sql.Scanner, accepting the encoded form as a string or
-// []byte, the 10-byte binary form as a []byte, or nil, which yields the
-// zero value. On any other input, id is reset to the zero value and an
-// error is returned. The binary form can only be read through Scan; use
-// ValueBinary to write it.
+// []byte, the 10-byte binary form as a []byte, or nil, which yields the zero
+// value. On any other input, id is reset to the zero value and an error is
+// returned. The binary form can only be read through Scan; use ValueBinary to
+// write it.
 func (id *ID) Scan(value any) error {
 	switch val := value.(type) {
 	case string:
