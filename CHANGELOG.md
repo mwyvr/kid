@@ -1,5 +1,28 @@
 # Change Log
 
+kid's public API is frozen and the 80-bit ID layout is fixed.
+
+## v2.1.2 (2026-10-06)
+
+### Changed
+
+- `cmd/kid`: usage and errors to stderr; `-c N` rejected while inspecting.
+
+### Fixed
+
+- `eval/uniqcheck`: reject `-count`/`-goroutines` < 1.
+
+### Tests
+
+- `TestGetTSClockRegression`: reset `lastTime` baseline.
+- `FuzzUnmarshalJSON`: null round-trip.
+- `TestIDTime`: table-driven, adversarial case.
+- `TestEncodingNoDuplicates`.
+
+### Docs
+
+- doc updates for clarity
+
 ## v2.1.1 (2026-09-17)
 
 ### Fixed
