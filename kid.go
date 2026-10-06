@@ -82,7 +82,7 @@ func New() ID {
 // NewWithTime generates a new ID with the given timestamp.
 //
 // The sequence is derived from t's sub-millisecond component rather than via
-// [getTS], so its output isn't ordered relative to New's, and ts+seq uniqueness
+// [getTS], so its output isn't ordered relative to [New]'s, and ts+seq uniqueness
 // against New isn't guaranteed. Use it where you control generation for a key
 // space: tests, backfills, replays.
 func NewWithTime(t time.Time) (id ID, err error) {
@@ -134,16 +134,17 @@ func buildID(milli, seq uint64) (id ID) {
 	return id
 }
 
-// IsZero reports whether id is the zero value returned by [Zero]. Note
-// that the zero value is also a valid, decodable ID.
+// IsZero reports whether id is the zero value returned by [Zero].
+//
+// Note that the zero value is also a valid, decodable ID.
 func (id ID) IsZero() bool {
 	return id == ID{}
 }
 
-// IsNil reports whether id is the zero value. It is an alias for IsZero,
-// kept for readers familiar with the "nil sentinel" terminology common to
-// other ID libraries (e.g. uuid.Nil); ID itself, being an array, is never
-// nil in the language sense.
+// IsNil reports whether id is the zero value and is an alias for [IsZero].
+//
+// IsNil is kept for readers familiar with the "nil sentinel" terminology common
+// to other ID libraries (e.g. uuid.Nil).
 func (id ID) IsNil() bool {
 	return id.IsZero()
 }
@@ -234,6 +235,7 @@ func (id *ID) UnmarshalBinary(data []byte) error {
 
 // Parse decodes a 16-character base32-encoded string to return an ID.
 // Decoding is case-sensitive: uppercase input is rejected with ErrInvalidID.
+// On error, returns the zero ID.
 func Parse(str string) (ID, error) {
 	var id ID
 	err := id.UnmarshalText([]byte(str))
@@ -357,7 +359,11 @@ func (id ID) Bytes() []byte {
 }
 
 // Timestamp returns the timestamp component of id, milliseconds since the
-// Unix epoch. The 6-byte field overflows around the year 10889.
+// Unix epoch.
+//
+// Under sustained generation above 4,096 IDs/ms, the timestamp can run ahead
+// of wall-clock time; treat it as creation order, not an exact instant (see
+// DESIGN.md). The 6-byte field overflows around the year 10889.
 func (id ID) Timestamp() int64 {
 	// First 8 bytes as one big-endian uint64, shifted to drop the sequence.
 	return int64(binary.BigEndian.Uint64(id[:]) >> 16)
@@ -365,20 +371,26 @@ func (id ID) Timestamp() int64 {
 
 // Time returns the timestamp component of id as time.Time, with millisecond
 // resolution and location UTC.
+//
+// See [Timestamp] for generation limitations.
 func (id ID) Time() time.Time {
 	return time.UnixMilli(id.Timestamp()).UTC()
 }
 
-// Sequence returns the sequence component of id: the high seqBits (12)
-// bits of the trailing 4-byte field. For IDs from New this is 0-3906
-// under normal clock-derived generation; the increment path can reach
-// 4095 under contention, carrying overflow into the timestamp (see getTS).
+// Sequence returns the sequence component of id.
+//
+// sequence is contained within the high seqBits (12) bits of the 4-byte
+// field trailing timestamp. For IDs from New this is 0-3906 under normal
+// clock-derived generation; the increment path can reach 4095 under contention,
+// carrying overflow into the timestamp (see [getTS]).
 func (id ID) Sequence() uint16 {
 	return uint16(binary.BigEndian.Uint32(id[6:10]) >> randBits)
 }
 
-// Random returns the randomness component of id: the low randBits (20)
-// bits of the trailing 4-byte field.
+// Random returns the randomness component of id.
+//
+// random is contained within the low randBits (20) bits of the 4-byte field
+// trailing timestamp.
 func (id ID) Random() uint32 {
 	return binary.BigEndian.Uint32(id[6:10]) & randMask
 }
