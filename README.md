@@ -35,10 +35,12 @@ func main() {
 
 Notes on v2:
 
-- Importing `github.com/mwyvr/kid` (no /v2) resolves to the old v1.x line.
+- kid's v2 exported API is considered complete. The 80-bit layout and the text
+  encoding are fixed.
 - kid v2 will decode kid v1 IDs into the same binary representation and
   timestamp values, but sequence and random ID segments are not comparable between
   v1 and v2.
+- Importing `github.com/mwyvr/kid` (no /v2) resolves to the old v1.x line.
 
 ## Features
 
