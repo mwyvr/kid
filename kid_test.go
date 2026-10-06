@@ -1039,6 +1039,16 @@ func TestEncodingPreservesOrder(t *testing.T) {
 	}
 }
 
+func TestEncodingNoDuplicates(t *testing.T) {
+	seen := make(map[byte]bool, len(encoding))
+	for i := 0; i < len(encoding); i++ {
+		if seen[encoding[i]] {
+			t.Fatalf("duplicate character %q in encoding alphabet", encoding[i])
+		}
+		seen[encoding[i]] = true
+	}
+}
+
 // TestNewUniqueParallel exercises the lock-free getTS path under concurrent
 // load: IDs generated across goroutines must never repeat a ts+seq pair, and
 // each goroutine must observe strictly increasing IDs. Run with -race.
