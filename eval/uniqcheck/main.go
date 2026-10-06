@@ -50,6 +50,15 @@ func main() {
 	flag.IntVar(&count, "count", count, "Generate count IDs per goroutine")
 	flag.Parse()
 
+	if numRoutines < 1 {
+		fmt.Fprintf(os.Stderr, "uniqcheck: Error, -goroutines must be at least 1, got %d.\n", numRoutines)
+		os.Exit(1)
+	}
+	if count < 1 {
+		fmt.Fprintf(os.Stderr, "uniqcheck: Error, -count must be at least 1, got %d.\n", count)
+		os.Exit(1)
+	}
+
 	fmt.Printf("uniqcheck: generating %s IDs on each of %s goroutines...\n",
 		commas(count), commas(numRoutines))
 
